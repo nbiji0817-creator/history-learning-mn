@@ -4,8 +4,9 @@ import { historicalFigures } from "@/data/figures";
 import { games } from "@/data/games";
 import { exams } from "@/data/exams";
 import { grades } from "@/data/grades";
+import { getSiteUrl } from "@/lib/site";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const siteUrl = getSiteUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
