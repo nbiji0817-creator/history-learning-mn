@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container, PageHeader } from "@/components/ui/page";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
+import { FamilyLinks } from "@/components/dashboard/family-links";
 import { getAchievements, getLessons } from "@/lib/repo";
 import { requireUser } from "@/lib/auth-server";
 
@@ -29,8 +30,9 @@ export default async function DashboardPage() {
         description="Сурсан зүйлээ хэмжиж байж сайжруулна. Сул сэдвээ таньж, зорилготой давтлага хий."
       />
 
-      <Container className="py-10">
+      <Container className="space-y-8 py-10">
         <StudentDashboard lessons={lessons} achievements={achievements} />
+        <FamilyLinks />
       </Container>
     </>
   );

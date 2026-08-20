@@ -1,6 +1,23 @@
 import { getDbStatus } from "@/lib/repo";
 import { webSearchProvider } from "@/lib/ai/web-search";
 
+/**
+ * Орчны хувьсагчийн төлөвийг хүн уншихаар тайлбарлана.
+ *
+ * «Тохируулаагүй» болон «хоосон утгатай» хоёр нь ӨӨР асуудал:
+ * эхнийх нь мартсан, хоёр дахь нь Vercel дээр мөрийг үүсгээд утгыг
+ * нь бөглөөгүй гэсэн үг. Хоёуланг нь ялгаж хэлэхгүй бол хэрэглэгч
+ * «би нэмсэн шүү дээ» гээд эргэлзэнэ.
+ *
+ * Утгыг НЬ ХЭЗЭЭ Ч буцаахгүй — зөвхөн төлөвийг.
+ */
+function describe(name: string): string {
+  const raw = process.env[name];
+  if (raw === undefined) return "тохируулаагүй";
+  if (raw.trim() === "") return "⚠️ мөр үүссэн ч утга нь ХООСОН байна";
+  return "OK";
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -42,12 +59,12 @@ export async function GET() {
             "(/rest/v1/ хэсэггүй, төгсгөлд ташуу зураасгүй).",
         anonKeySet: anonKey.length > 0,
         serviceKeySet: serviceKey.length > 0,
-        siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "(тохируулаагүй)",
-        teacherCodeSet: Boolean(process.env.TEACHER_INVITE_CODE),
-        seedSecretSet: Boolean(process.env.SEED_SECRET),
-        openAiKeySet: Boolean(process.env.OPENAI_API_KEY?.trim()),
+        siteUrl: describe("NEXT_PUBLIC_SITE_URL"),
+        teacherCode: describe("TEACHER_INVITE_CODE"),
+        seedSecret: describe("SEED_SECRET"),
+        openAiKey: describe("OPENAI_API_KEY"),
         openAiKeyLength: (process.env.OPENAI_API_KEY ?? "").trim().length,
-        openAiModel: process.env.OPENAI_MODEL ?? "(default)",
+        openAiModel: describe("OPENAI_MODEL"),
         /* Википедиа түлхүүргүй ажилладаг тул энэ нь хэзээ ч хоосон биш */
         webSearchProvider: webSearchProvider(),
       },

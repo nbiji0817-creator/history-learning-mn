@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container, PageHeader } from "@/components/ui/page";
 import { ParentView } from "@/components/dashboard/parent-view";
+import { FamilyLinks } from "@/components/dashboard/family-links";
 import { getAnnouncements, getLessons } from "@/lib/repo";
 import { requireRole } from "@/lib/auth-server";
 
@@ -29,7 +30,8 @@ export default async function ParentPage() {
         description="Хүүхдийнхээ ахицыг ажиглаж, дэмжлэг үзүүлээрэй. Энэ хэсэгт зөвхөн харах эрхтэй бөгөөд санал хүсэлт бичих боломжтой."
       />
 
-      <Container className="py-10">
+      <Container className="space-y-8 py-10">
+        <FamilyLinks />
         <ParentView lessons={lessons} announcements={announcements} />
       </Container>
     </>

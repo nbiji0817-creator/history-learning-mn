@@ -20,6 +20,7 @@ const columns = [
       { href: "/exams", label: "Шалгалтын бэлтгэл" },
       { href: "/ai", label: "AI түүхийн багш" },
       { href: "/dashboard", label: "Миний ахиц" },
+      { href: "/leaderboard", label: "Тэргүүлэгчид" },
     ],
   },
   {
@@ -29,6 +30,7 @@ const columns = [
       { href: "/parent", label: "Эцэг эхийн хэсэг" },
       { href: "/admin", label: "Багш / Админ" },
       { href: "/search", label: "Хайлт" },
+      { href: "/profile", label: "Миний профайл" },
     ],
   },
 ];

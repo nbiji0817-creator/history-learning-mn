@@ -26,6 +26,15 @@ export default async function GamesPage() {
         description="Тоглож байж сурсан зүйл илүү удаан санагддаг. Тоглоом бүр XP цуглуулж, ахицад тооцогдоно."
       />
 
+      <Section title="">
+        <Link
+          href="/leaderboard"
+          className="inline-flex items-center gap-2 rounded-xl border border-line px-5 py-2.5 text-sm font-bold transition hover:border-gold/60 hover:bg-muted"
+        >
+          🏆 Тэргүүлэгчдийн самбар харах →
+        </Link>
+      </Section>
+
       <Section title="Тоглох боломжтой">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {playable.map((game) => (
