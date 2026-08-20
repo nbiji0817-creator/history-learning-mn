@@ -8,6 +8,10 @@ import {
   type KnowledgeHit,
 } from "@/lib/ai/knowledge";
 import { getLessons } from "@/lib/repo";
+import {
+  getLearnerContext,
+  personalizationPrompt,
+} from "@/lib/ai/personalize";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -128,6 +132,13 @@ export async function POST(request: Request) {
   }
 
   const result = retrieve(message, corpus);
+
+  /*
+   * Сурагчийн анги, сул сэдвийг мэдвэл хариултаа тэр түвшинд тааруулна.
+   * Нэвтрээгүй бол хоосон буцна — хувийн мэдээлэл ашиглагдахгүй.
+   */
+  const learner = await getLearnerContext();
+
   const apiKey = process.env.OPENAI_API_KEY;
   const useOpenAi = Boolean(apiKey) && result.hits.length > 0;
 
@@ -146,12 +157,13 @@ export async function POST(request: Request) {
     "X-Ai-Matched": String(result.confident),
     "X-Ai-Score": String(result.topScore),
     "X-Ai-Citations": citationHeader(result.hits),
+    "X-Ai-Personalized": String(learner.available),
   };
   if (questionId) headers["X-Ai-Question-Id"] = questionId;
 
   /* ── Мэдлэгийн санд юу ч олдсонгүй: зохиохгүй, шулуухан хэлнэ ── */
   if (result.hits.length === 0) {
-    return new Response(streamText(notFoundAnswer(message)), {
+    return new Response(streamText(notFoundAnswer(message, result.nearMisses)), {
       headers: { ...headers, "X-Ai-Source": "not-found" },
     });
   }
@@ -177,7 +189,12 @@ export async function POST(request: Request) {
         /* Бага температур — түүхэн баримтад бүтээлч байдал хэрэггүй */
         temperature: 0.2,
         messages: [
-          { role: "system", content: buildSystemPrompt(mode, result.hits) },
+          {
+            role: "system",
+            content:
+              buildSystemPrompt(mode, result.hits) +
+              personalizationPrompt(learner),
+          },
           ...(body.history ?? []).slice(-6),
           { role: "user", content: message },
         ],

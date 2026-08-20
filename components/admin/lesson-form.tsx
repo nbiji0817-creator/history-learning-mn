@@ -7,6 +7,7 @@ import type { Difficulty, GradeNumber, Lesson } from "@/types";
 import { Button, Card } from "@/components/ui/primitives";
 import { saveLesson, type LessonSectionInput } from "@/lib/actions/content";
 import { cn, difficultyLabels } from "@/lib/utils";
+import { AiGenerate, type LessonDraft } from "./ai-generate";
 
 /**
  * Кирилл гарчгийг латин slug болгоно.
@@ -112,6 +113,38 @@ export function LessonForm({ lesson }: { lesson?: Lesson }) {
     });
   };
 
+  /** AI-ийн ноорогийг формын талбарууд руу буулгана. */
+  const applyDraft = (draft: LessonDraft) => {
+    if (draft.title) {
+      setTitle(draft.title);
+      if (!lesson) setSlug(toSlug(draft.title));
+    }
+    if (draft.subtitle) setSubtitle(draft.subtitle);
+    if (draft.icon) setIcon(draft.icon);
+    if (draft.summary) setSummary(draft.summary);
+    if (draft.objectives?.length) setObjectives(draft.objectives.join("\n"));
+    if (draft.conclusion) setConclusion(draft.conclusion);
+    if (draft.tags?.length) setTags(draft.tags.join(", "));
+
+    if (draft.sections?.length) {
+      setSections(
+        draft.sections
+          .filter((section) =>
+            ["text", "keypoints", "concepts"].includes(section.type ?? ""),
+          )
+          .map((section) => ({
+            type: section.type as LessonSectionInput["type"],
+            title: section.title ?? "",
+            body: section.body ?? "",
+            points: (section.points ?? []).join("\n"),
+            concepts: (section.concepts ?? [])
+              .map((item) => `${item.term} :: ${item.definition}`)
+              .join("\n"),
+          })),
+      );
+    }
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -151,6 +184,8 @@ export function LessonForm({ lesson }: { lesson?: Lesson }) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      <AiGenerate kind="lesson" grade={grade} onLesson={applyDraft} />
+
       <Card>
         <h2 className="text-sm font-black">Үндсэн мэдээлэл</h2>
 

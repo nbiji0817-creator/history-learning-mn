@@ -7,6 +7,7 @@ import type { Difficulty, EraKey, GradeNumber, Question } from "@/types";
 import { Button, Card } from "@/components/ui/primitives";
 import { saveQuestion } from "@/lib/actions/content";
 import { cn, difficultyLabels } from "@/lib/utils";
+import { AiGenerate, type QuestionDraft } from "./ai-generate";
 
 const ERA_LABELS: Record<EraKey, string> = {
   ancient: "Эрт үе",
@@ -45,6 +46,24 @@ export function QuestionForm({ question }: { question?: Question }) {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  /**
+   * AI хэд хэдэн асуулт үүсгэдэг. Эхнийхийг формд буулгаж, үлдсэнийг
+   * дараалалд хадгална — нэгийг хадгалсны дараа дараагийнх нь гарч ирнэ.
+   */
+  const [queue, setQueue] = useState<QuestionDraft[]>([]);
+
+  const applyDraft = (draft: QuestionDraft) => {
+    if (draft.prompt) setPrompt(draft.prompt);
+    if (draft.options?.length) setOptions(draft.options.join("\n"));
+    if (typeof draft.answerIndex === "number") setAnswerIndex(draft.answerIndex);
+    if (draft.explanation) setExplanation(draft.explanation);
+    if (draft.topic) setTopic(draft.topic);
+    if (draft.difficulty && ["easy", "medium", "hard"].includes(draft.difficulty)) {
+      setDifficulty(draft.difficulty as Difficulty);
+    }
+    setType("multiple_choice");
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -82,6 +101,38 @@ export function QuestionForm({ question }: { question?: Question }) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      <AiGenerate
+        kind="questions"
+        grade={grade === "" ? 6 : grade}
+        onQuestions={(drafts) => {
+          const [first, ...rest] = drafts;
+          if (first) applyDraft(first);
+          setQueue(rest);
+        }}
+      />
+
+      {queue.length > 0 ? (
+        <Card className="border-gold/40 bg-gold/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm">
+              AI үүсгэсэн <b>{queue.length}</b> асуулт дараалалд хүлээж байна.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                const [next, ...rest] = queue;
+                applyDraft(next);
+                setQueue(rest);
+              }}
+            >
+              Дараагийнхыг харах →
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       <Card>
         <h2 className="text-sm font-black">Асуулт</h2>
 

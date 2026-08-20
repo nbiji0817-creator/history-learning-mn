@@ -199,6 +199,12 @@ export interface RetrieveResult {
   confident: boolean;
   /** Хамгийн сайн таарцын оноо — оношилгоонд */
   topScore: number;
+  /**
+   * Босго давaагүй ч ойролцоо байсан сэдвүүд.
+   * «Мэдэхгүй» гэж хариулахдаа хоосон гараар явуулахгүй, эдгээрийг
+   * санал болгоно — сурагч өөрөө холбоог нь олж магадгүй.
+   */
+  nearMisses: { title: string; href: string }[];
 }
 
 export function retrieve(
@@ -232,8 +238,15 @@ export function retrieve(
 
   const topScore = results[0]?.score ?? 0;
 
+  const nearMisses = results
+    .filter((hit) => !hits.some((kept) => kept.href === hit.doc.href))
+    .filter((hit) => hit.score >= 1.5)
+    .slice(0, 3)
+    .map((hit) => ({ title: hit.doc.title, href: hit.doc.href }));
+
   return {
     hits,
+    nearMisses,
     /* Хоёр нөхцөл: оноо хангалттай ӨӨР асуултын үгсийн ихэнхийг олсон */
     confident: hits.length > 0 && topScore >= MIN_SCORE * 1.5,
     topScore: Math.round(topScore * 10) / 10,
@@ -388,25 +401,44 @@ export function buildFallbackAnswer(
  *   • хаанаас хайхыг зааж өгнө
  *   • асуултыг бүртгэж, багш агуулга нэмэх боломж олгоно
  */
-export function notFoundAnswer(query: string): string {
-  return [
+export function notFoundAnswer(
+  query: string,
+  nearMisses: { title: string; href: string }[] = [],
+): string {
+  const encoded = encodeURIComponent(query.slice(0, 120));
+
+  const lines: string[] = [
     "**Энэ талаар системийн материалд мэдээлэл алга байна.**",
     "",
-    "Буруу хариулт өгөхөөс мэдэхгүй гэж хэлэх нь зөв гэж үзэж байна.",
+    "Буруу хариулт зохиохоос мэдэхгүй гэж хэлэх нь зөв гэж үзэж байна.",
     "",
-    "**Юу хийж болох вэ?**",
+  ];
+
+  /* Хоосон гараар явуулахгүй — хамгийн ойр байсан сэдвүүдийг санал болгоно */
+  if (nearMisses.length > 0) {
+    lines.push("**Магадгүй эдгээр хэрэгтэй байж болно**", "");
+    for (const item of nearMisses) {
+      lines.push(`• ${item.title} → ${item.href}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(
+    "**Системээс хайх**",
     "",
-    "• Асуултаа арай тодорхой, өөр үгээр бичиж үзээрэй",
-    "• Холбогдох хэсгээс шууд хайх: /search",
+    `• Нэгдсэн хайлт — /search?q=${encoded}`,
     "• Хичээлүүд — /grades",
     "• Түүхэн хүмүүс — /people",
     "• Он цагийн хэлхээс — /timeline",
     "• Тайлбар толь — /dictionary",
     "",
-    "**Гадаад эх сурвалж**",
+    "**Гадаад эх сурвалжаас хайх**",
     "",
+    `• Монгол Википедиа — https://mn.wikipedia.org/w/index.php?search=${encoded}`,
     "• Medle сургалтын материал — https://medle.edu.mn",
     "",
-    `_Таны «${query.slice(0, 80)}» гэсэн асуултыг бүртгэлээ. Багш нар үүнийг хараад холбогдох хичээл нэмэх боломжтой._`,
-  ].join("\n");
+    "_Таны асуултыг бүртгэлээ. Багш нар «AI-ийн сурал» хэсгээс үүнийг хараад холбогдох хичээл нэмэх боломжтой._",
+  );
+
+  return lines.join("\n");
 }
