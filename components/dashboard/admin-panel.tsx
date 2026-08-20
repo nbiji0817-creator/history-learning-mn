@@ -116,24 +116,76 @@ export function AdminPanel({
       <Card className="bg-muted/40">
         <h3 className="text-sm font-black">✍️ Агуулга нэмэх, засах</h3>
         <p className="mt-3 text-sm leading-7 text-fg-muted">
-          Phase 1-д агуулга нь кодын доторх өгөгдлийн файлд байна
-          (<code>data/lessons/</code>, <code>data/questions.ts</code>).
-          Supabase холбогдсоны дараа энэ хэсгээс шууд хичээл нэмэх, засах,
-          устгах, AI-аар тест үүсгэх боломж нээгдэнэ.
+          Хичээл, тестийн асуултыг шууд энэ системээс үүсгэж, засварлаж,
+          устгаж болно. Өөрчлөлт Supabase-д хадгалагдаж, сайт дээр шууд
+          харагдана.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {["+ Хичээл нэмэх", "+ Тест үүсгэх", "🤖 AI-аар тест үүсгэх", "🤖 AI-аар хичээл боловсруулах"].map(
-            (label) => (
-              <span
-                key={label}
-                className="cursor-not-allowed rounded-xl border border-dashed border-line px-4 py-2 text-sm text-fg-muted"
-                title="Phase 9 — Admin CMS"
-              >
-                {label}
-              </span>
-            ),
-          )}
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/admin/lessons/new"
+            className="group rounded-2xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-gold/60"
+          >
+            <span className="text-2xl" aria-hidden>
+              📚
+            </span>
+            <span className="mt-3 block font-bold group-hover:text-gold">
+              + Хичээл нэмэх
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-fg-muted">
+              Гарчиг, зорилго, блокууд бүхий шинэ хичээл үүсгэх
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/questions/new"
+            className="group rounded-2xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-gold/60"
+          >
+            <span className="text-2xl" aria-hidden>
+              ❓
+            </span>
+            <span className="mt-3 block font-bold group-hover:text-gold">
+              + Тестийн асуулт нэмэх
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-fg-muted">
+              Олон сонголт эсвэл үнэн/худал асуулт, тайлбарын хамт
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/lessons"
+            className="group rounded-2xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-gold/60"
+          >
+            <span className="text-2xl" aria-hidden>
+              🗂️
+            </span>
+            <span className="mt-3 block font-bold group-hover:text-gold">
+              Хичээлийн удирдлага
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-fg-muted">
+              {lessons.length} хичээлийг засах, нийтлэх, устгах
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/questions"
+            className="group rounded-2xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-gold/60"
+          >
+            <span className="text-2xl" aria-hidden>
+              🔧
+            </span>
+            <span className="mt-3 block font-bold group-hover:text-gold">
+              Асуултын сангийн удирдлага
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-fg-muted">
+              {questions.length} асуултыг хайж, засах, устгах
+            </span>
+          </Link>
         </div>
+
+        <p className="mt-4 text-xs leading-6 text-fg-muted">
+          🤖 AI-аар хичээл, тест үүсгэх боломж дараагийн шатанд нэмэгдэнэ.
+        </p>
       </Card>
     </div>
   );

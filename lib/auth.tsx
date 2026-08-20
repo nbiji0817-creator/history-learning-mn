@@ -122,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!configured) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Supabase тохируулаагүй бол хүлээх зүйлгүй
       setReady(true);
       return;
     }
