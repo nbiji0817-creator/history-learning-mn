@@ -3,6 +3,11 @@ import { Container, PageHeader } from "@/components/ui/page";
 import { AdminPanel } from "@/components/dashboard/admin-panel";
 import { requireRole } from "@/lib/auth-server";
 import {
+  getAiStats,
+  getContentGaps,
+  getRecentQuestions,
+} from "@/lib/repo/ai-insights";
+import {
   getAnnouncements,
   getDbStatus,
   getExams,
@@ -32,7 +37,20 @@ export default async function AdminPage() {
    */
   const current = await requireRole(["teacher", "admin"], "/admin");
 
-  const [stats, lessons, questions, games, exams, feedback, users, announcements, dbStatus] =
+  const [
+    stats,
+    lessons,
+    questions,
+    games,
+    exams,
+    feedback,
+    users,
+    announcements,
+    dbStatus,
+    aiStats,
+    contentGaps,
+    recentQuestions,
+  ] =
     await Promise.all([
       getPlatformStats(),
       getLessons(),
@@ -43,6 +61,9 @@ export default async function AdminPage() {
       getUsers(),
       getAnnouncements(),
       getDbStatus(),
+      getAiStats(),
+      getContentGaps(),
+      getRecentQuestions(),
     ]);
 
   return (
@@ -65,6 +86,9 @@ export default async function AdminPage() {
           users={users}
           announcements={announcements}
           dbStatus={dbStatus}
+          aiStats={aiStats}
+          contentGaps={contentGaps}
+          recentQuestions={recentQuestions}
           currentUser={{
             name: current.profile.name,
             role: current.profile.role,

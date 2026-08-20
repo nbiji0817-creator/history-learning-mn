@@ -3,9 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AiMessage, AiMode } from "@/types";
+
 import { aiModes } from "@/lib/ai/knowledge";
 import { Button } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
+
+interface Citation {
+  label: string;
+  href: string;
+  kind: string;
+}
+
+interface ChatMessage extends AiMessage {
+  citations?: Citation[];
+  questionId?: string;
+  matched?: boolean;
+}
+
+const KIND_ICONS: Record<string, string> = {
+  lesson: "📚",
+  figure: "👑",
+  event: "📌",
+  source: "📜",
+  term: "📖",
+};
 
 const suggestions = [
   "Хүннү улс хэдэн онд байгуулагдсан бэ?",
@@ -19,7 +40,7 @@ const suggestions = [
 export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
   const [mode, setMode] = useState<AiMode>("ask");
   const [input, setInput] = useState(initialQuestion ?? "");
-  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -33,7 +54,7 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
     setBusy(true);
     setInput("");
 
-    const userMessage: AiMessage = {
+    const userMessage: ChatMessage = {
       id: `u-${Date.now()}`,
       role: "user",
       content: question,
@@ -69,6 +90,26 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
       if (!response.ok || !response.body) {
         throw new Error("Хариулт авахад алдаа гарлаа");
       }
+
+      /* Эх сурвалж, итгэлцүүр, бүртгэлийн id-г толгойгоос авна */
+      let citations: Citation[] = [];
+      try {
+        const encoded = response.headers.get("X-Ai-Citations");
+        if (encoded) citations = JSON.parse(atob(encoded));
+      } catch {
+        /* Толгой эвдэрсэн ч хариулт харагдах ёстой */
+      }
+
+      const questionId = response.headers.get("X-Ai-Question-Id") ?? undefined;
+      const matched = response.headers.get("X-Ai-Matched") === "true";
+
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === assistantId
+            ? { ...item, citations, questionId, matched }
+            : item,
+        ),
+      );
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -190,7 +231,34 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
                 )}
               >
                 {message.content ? (
-                  <MessageBody content={message.content} />
+                  <>
+                    <MessageBody content={message.content} />
+
+                    {message.role === "assistant" &&
+                    message.citations &&
+                    message.citations.length > 0 ? (
+                      <div className="mt-4 border-t border-line/60 pt-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-fg-muted">
+                          Эх сурвалж
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {message.citations.map((citation) => (
+                            <Link
+                              key={citation.href + citation.label}
+                              href={citation.href}
+                              className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-medium transition hover:border-gold hover:text-gold"
+                            >
+                              {KIND_ICONS[citation.kind] ?? "🔗"} {citation.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {message.role === "assistant" && message.questionId ? (
+                      <AnswerFeedback questionId={message.questionId} />
+                    ) : null}
+                  </>
                 ) : (
                   <span className="inline-flex gap-1">
                     <span className="h-2 w-2 animate-bounce rounded-full bg-fg-muted" />
@@ -230,6 +298,69 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
           </Button>
         </form>
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * Хариултын үнэлгээ — AI-ийн сурах гогцооны хамгийн үнэ цэнэтэй хэсэг.
+ *
+ * «Тусгүй» гэж тэмдэглэсэн асуултууд багшийн самбарт «юуг сайжруулах вэ»
+ * гэсэн жагсаалтад орно.
+ */
+function AnswerFeedback({ questionId }: { questionId: string }) {
+  const [sent, setSent] = useState<1 | -1 | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const rate = async (rating: 1 | -1) => {
+    if (sent !== null || busy) return;
+    setBusy(true);
+    try {
+      await fetch("/api/ai/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId, rating }),
+      });
+      setSent(rating);
+    } catch {
+      /* Үнэлгээ хадгалагдаагүй ч хэрэглэгчийн ажлыг тасалдуулахгүй */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (sent !== null) {
+    return (
+      <p className="mt-3 text-[11px] text-fg-muted">
+        {sent === 1
+          ? "Баярлалаа — санал хүлээж авлаа."
+          : "Баярлалаа. Энэ асуултыг багш нар хараад агуулга нэмнэ."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <span className="text-[11px] text-fg-muted">Энэ хариулт тустай байв уу?</span>
+      <button
+        type="button"
+        onClick={() => void rate(1)}
+        disabled={busy}
+        className="rounded-lg px-2 py-0.5 text-sm transition hover:bg-surface"
+        aria-label="Тустай"
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        onClick={() => void rate(-1)}
+        disabled={busy}
+        className="rounded-lg px-2 py-0.5 text-sm transition hover:bg-surface"
+        aria-label="Тусгүй"
+      >
+        👎
+      </button>
     </div>
   );
 }

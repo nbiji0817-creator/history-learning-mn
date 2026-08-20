@@ -31,16 +31,50 @@ interface Stats {
   unresolvedFeedback: number;
 }
 
-type Tab = "overview" | "lessons" | "questions" | "users" | "feedback" | "news";
+type Tab =
+  | "overview"
+  | "lessons"
+  | "questions"
+  | "ai"
+  | "users"
+  | "feedback"
+  | "news";
 
 const tabs: { key: Tab; label: string; icon: string }[] = [
   { key: "overview", label: "Тойм", icon: "📊" },
   { key: "lessons", label: "Хичээл", icon: "📚" },
   { key: "questions", label: "Асуултын сан", icon: "❓" },
+  { key: "ai", label: "AI-ийн сурал", icon: "🤖" },
   { key: "users", label: "Хэрэглэгч", icon: "👥" },
   { key: "feedback", label: "Санал хүсэлт", icon: "💬" },
   { key: "news", label: "Мэдээ", icon: "📰" },
 ];
+
+export interface AiStatsProps {
+  total: number;
+  unmatched: number;
+  helpful: number;
+  unhelpful: number;
+  available: boolean;
+}
+
+export interface ContentGapProps {
+  question: string;
+  timesAsked: number;
+  lastAsked: string;
+  avgScore: number;
+}
+
+export interface RecentQuestionProps {
+  id: string;
+  question: string;
+  mode: string;
+  matched: boolean;
+  topMatch: string | null;
+  topScore: number;
+  rating: number | null;
+  createdAt: string;
+}
 
 export interface DbStatusProps {
   configured: boolean;
@@ -61,6 +95,9 @@ export function AdminPanel({
   announcements,
   dbStatus,
   currentUser,
+  aiStats,
+  contentGaps,
+  recentQuestions,
 }: {
   stats: Stats;
   lessons: Lesson[];
@@ -72,6 +109,9 @@ export function AdminPanel({
   announcements: Announcement[];
   dbStatus: DbStatusProps;
   currentUser: { name: string; role: UserRole; email: string };
+  aiStats: AiStatsProps;
+  contentGaps: ContentGapProps[];
+  recentQuestions: RecentQuestionProps[];
 }) {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -109,6 +149,13 @@ export function AdminPanel({
       ) : null}
       {tab === "lessons" ? <LessonsTab lessons={lessons} /> : null}
       {tab === "questions" ? <QuestionsTab questions={questions} /> : null}
+      {tab === "ai" ? (
+        <AiTab
+          stats={aiStats}
+          gaps={contentGaps}
+          recent={recentQuestions}
+        />
+      ) : null}
       {tab === "users" ? <UsersTab users={users} /> : null}
       {tab === "feedback" ? <FeedbackTab feedback={feedback} /> : null}
       {tab === "news" ? <NewsTab announcements={announcements} /> : null}
@@ -186,6 +233,142 @@ export function AdminPanel({
         <p className="mt-4 text-xs leading-6 text-fg-muted">
           🤖 AI-аар хичээл, тест үүсгэх боломж дараагийн шатанд нэмэгдэнэ.
         </p>
+      </Card>
+    </div>
+  );
+}
+
+
+/* ─────────────────────────  AI-ийн сурал  ───────────────────────── */
+
+function AiTab({
+  stats,
+  gaps,
+  recent,
+}: {
+  stats: AiStatsProps;
+  gaps: ContentGapProps[];
+  recent: RecentQuestionProps[];
+}) {
+  if (!stats.available) {
+    return (
+      <Card>
+        <h3 className="text-sm font-black">🤖 AI-ийн сурах гогцоо идэвхгүй</h3>
+        <p className="mt-3 text-sm leading-7 text-fg-muted">
+          Сурагчдын асуултыг бүртгэх хүснэгт хараахан үүсээгүй байна.
+          Supabase SQL Editor дээр{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5">
+            supabase/migrations/0004_ai_feedback.sql
+          </code>{" "}
+          файлыг ажиллуулна уу.
+        </p>
+        <p className="mt-3 text-sm leading-7 text-fg-muted">
+          Үүний дараа AI юуг мэдэхгүй байгаа, ямар хариулт тусгүй байсныг
+          энд харж, түүнд нь хичээл нэмэх боломжтой болно.
+        </p>
+      </Card>
+    );
+  }
+
+  const answered = stats.total - stats.unmatched;
+  const rate = stats.total > 0 ? Math.round((answered / stats.total) * 100) : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat icon="💬" label="Нийт асуулт" value={stats.total} />
+        <Stat
+          icon="🎯"
+          label="Хариулт олдсон"
+          value={`${rate}%`}
+          hint={`${answered} / ${stats.total}`}
+        />
+        <Stat icon="👍" label="Тустай гэсэн" value={stats.helpful} />
+        <Stat icon="👎" label="Тусгүй гэсэн" value={stats.unhelpful} />
+      </div>
+
+      <Card>
+        <h3 className="text-sm font-black">📋 Агуулгын цоорхой</h3>
+        <p className="mt-2 text-sm leading-7 text-fg-muted">
+          AI хариулж чадаагүй эсвэл сурагч «тусгүй» гэж үнэлсэн асуултууд.
+          Эдгээрт хичээл, тест нэмбэл систем шууд сайжирна.
+        </p>
+
+        {gaps.length === 0 ? (
+          <p className="mt-5 rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+            ✅ Одоогоор хариулт олдоогүй асуулт алга байна.
+          </p>
+        ) : (
+          <div className="scroll-x mt-5">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="border-b border-line text-xs uppercase text-fg-muted">
+                <tr>
+                  <th className="py-2 pr-3">Асуулт</th>
+                  <th className="py-2 pr-3">Хэдэн удаа</th>
+                  <th className="py-2 pr-3">Сүүлд</th>
+                  <th className="py-2 pr-3">Үйлдэл</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {gaps.map((gap) => (
+                  <tr key={gap.question}>
+                    <td className="py-2.5 pr-3">{gap.question}</td>
+                    <td className="py-2.5 pr-3">
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-xs font-bold",
+                          gap.timesAsked >= 3
+                            ? "bg-clay/15 text-clay"
+                            : "bg-muted text-fg-muted",
+                        )}
+                      >
+                        {gap.timesAsked}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs text-fg-muted">
+                      {formatDate(gap.lastAsked)}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <Link
+                        href="/admin/lessons/new"
+                        className="text-xs font-bold text-gold hover:underline"
+                      >
+                        Хичээл нэмэх →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-black">🕘 Сүүлийн асуултууд</h3>
+
+        {recent.length === 0 ? (
+          <p className="mt-3 text-sm text-fg-muted">Одоогоор асуулт алга.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line">
+            {recent.map((item) => (
+              <li key={item.id} className="py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span aria-hidden>{item.matched ? "🎯" : "❔"}</span>
+                  <span className="text-sm font-medium">{item.question}</span>
+                  {item.rating === 1 ? <span title="Тустай">👍</span> : null}
+                  {item.rating === -1 ? <span title="Тусгүй">👎</span> : null}
+                </div>
+                <p className="mt-1 text-xs text-fg-muted">
+                  {item.topMatch
+                    ? `→ ${item.topMatch} (оноо ${item.topScore})`
+                    : "→ хариулт олдоогүй"}{" "}
+                  · {formatDate(item.createdAt)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </div>
   );
