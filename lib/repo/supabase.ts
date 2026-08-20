@@ -305,10 +305,30 @@ export async function getDbStatus(): Promise<DbStatus> {
     const { error } = await db.from("lessons").select("id").limit(1);
 
     if (error) {
+      const message = error.message ?? "";
+
+      /*
+       * Хэрэв хариу нь HTML бол NEXT_PUBLIC_SUPABASE_URL нь Supabase биш
+       * өөр сайт руу (ихэвчлэн өөрийнхөө домэйн руу) зааж байна гэсэн үг.
+       * Энэ андуурал их гардаг тул тусад нь ойлгомжтой мэдэгдэнэ.
+       */
+      if (message.includes("<!DOCTYPE") || message.includes("<html")) {
+        return {
+          configured: true,
+          connected: false,
+          seeded: false,
+          lessonCount: 0,
+          message:
+            "NEXT_PUBLIC_SUPABASE_URL буруу байна — Supabase биш өөр вэб хуудас " +
+            "хариу өгч байна. Утга нь https://<project-ref>.supabase.co хэлбэртэй, " +
+            "/rest/v1/ хэсэггүй, төгсгөлийн ташуу зураасгүй байх ёстой.",
+        };
+      }
+
       const missingTable =
         error.code === "PGRST205" ||
-        Boolean(error.message?.includes("schema cache")) ||
-        Boolean(error.message?.includes("does not exist"));
+        message.includes("schema cache") ||
+        message.includes("does not exist");
 
       return {
         configured: true,
@@ -318,7 +338,7 @@ export async function getDbStatus(): Promise<DbStatus> {
         message: missingTable
           ? "Холбогдсон боловч хүснэгт олдсонгүй. supabase/migrations/ доторх " +
             "3 SQL файлыг дарааллаар нь ажиллуулна уу."
-          : `Supabase алдаа: ${error.message}`,
+          : `Supabase алдаа: ${message.slice(0, 300)}`,
       };
     }
 

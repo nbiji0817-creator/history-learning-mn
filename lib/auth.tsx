@@ -68,6 +68,27 @@ function translateError(message: string): string {
   for (const [english, mongolian] of Object.entries(map)) {
     if (message.includes(english)) return mongolian;
   }
+
+  /*
+   * «Unexpected token '<'» гэдэг нь JSON хүлээж байсан газар HTML ирснийг
+   * хэлнэ — өөрөөр хэлбэл NEXT_PUBLIC_SUPABASE_URL нь Supabase биш өөр
+   * хуудас руу зааж байна. Түүхий алдааг харуулахын оронд шалтгааныг хэлнэ.
+   */
+  if (
+    message.includes("is not valid JSON") ||
+    message.includes("Unexpected token") ||
+    message.includes("<!DOCTYPE")
+  ) {
+    return (
+      "Серверийн тохиргоо буруу байна: NEXT_PUBLIC_SUPABASE_URL нь Supabase " +
+      "рүү зааж байгаа эсэхийг шалгана уу (https://<project-ref>.supabase.co)."
+    );
+  }
+
+  if (message.includes("Failed to fetch") || message.includes("NetworkError")) {
+    return "Сүлжээнд холбогдож чадсангүй. Дахин оролдоно уу.";
+  }
+
   return message;
 }
 
