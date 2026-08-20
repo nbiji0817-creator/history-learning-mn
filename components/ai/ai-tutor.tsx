@@ -26,6 +26,8 @@ const KIND_ICONS: Record<string, string> = {
   event: "📌",
   source: "📜",
   term: "📖",
+  /* Гадаад эх сурвалж — сурах бичигт байхгүй асуултын хариулт */
+  web: "🌐",
 };
 
 const suggestions = [

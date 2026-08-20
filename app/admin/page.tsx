@@ -8,6 +8,7 @@ import {
   getRecentQuestions,
 } from "@/lib/repo/ai-insights";
 import { getEmbeddingStatus } from "@/lib/ai/embeddings";
+import { webSearchProvider } from "@/lib/ai/web-search";
 import { buildCorpus } from "@/lib/ai/knowledge";
 import {
   getAnnouncements,
@@ -93,6 +94,7 @@ export default async function AdminPage() {
           aiStats={aiStats}
           contentGaps={contentGaps}
           recentQuestions={recentQuestions}
+          webProvider={webSearchProvider()}
           embeddingStatus={{
             ...embedding,
             corpusSize: buildCorpus(lessons).length,

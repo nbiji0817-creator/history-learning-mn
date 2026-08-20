@@ -1,4 +1,5 @@
 import { getDbStatus } from "@/lib/repo";
+import { webSearchProvider } from "@/lib/ai/web-search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,11 +48,8 @@ export async function GET() {
         openAiKeySet: Boolean(process.env.OPENAI_API_KEY?.trim()),
         openAiKeyLength: (process.env.OPENAI_API_KEY ?? "").trim().length,
         openAiModel: process.env.OPENAI_MODEL ?? "(default)",
-        webSearchProvider:
-          (process.env.GOOGLE_CSE_ID && process.env.GOOGLE_API_KEY && "google") ||
-          (process.env.TAVILY_API_KEY && "tavily") ||
-          (process.env.BRAVE_API_KEY && "brave") ||
-          "(тохируулаагүй)",
+        /* Википедиа түлхүүргүй ажилладаг тул энэ нь хэзээ ч хоосон биш */
+        webSearchProvider: webSearchProvider(),
       },
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -14,6 +14,12 @@ import {
 } from "@/lib/ai/personalize";
 import { mergeHits, semanticSearch } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";
+import {
+  webContextPrompt,
+  webOnlyAnswer,
+  webSearch,
+  type WebResult,
+} from "@/lib/ai/web-search";
 
 export const runtime = "nodejs";
 
@@ -161,7 +167,24 @@ export async function POST(request: Request) {
   const learner = await getLearnerContext();
 
   const apiKey = process.env.OPENAI_API_KEY;
-  const useOpenAi = Boolean(apiKey) && result.hits.length > 0;
+
+  /*
+   * ВЭБ ХАЙЛТ РУУ ШИЛЖИХ
+   *
+   * Мэдлэгийн санд юу ч олдоогүй бол «мэдэхгүй» гээд орхихгүй —
+   * интернэтээс хайна. Википедиа түлхүүргүй ажилладаг тул энэ нь
+   * ямар ч тохиргоогүйгээр идэвхтэй байна.
+   *
+   * Олдсон ч гэсэн энэ нь сурах бичгээс гадуурх мэдээлэл гэдгийг
+   * хариулт дотор ил хэлнэ (`webContextPrompt` / `webOnlyAnswer`).
+   */
+  let webResults: WebResult[] = [];
+  if (result.hits.length === 0) {
+    webResults = await webSearch(message);
+  }
+
+  const useOpenAi =
+    Boolean(apiKey) && (result.hits.length > 0 || webResults.length > 0);
 
   const questionId = await logQuestion({
     question: message,
@@ -169,7 +192,13 @@ export async function POST(request: Request) {
     matched: result.confident,
     topScore: result.topScore,
     topMatch: result.hits[0]?.title ?? null,
-    source: useOpenAi ? "openai" : "knowledge-base",
+    source: useOpenAi
+      ? webResults.length > 0
+        ? "openai+web"
+        : "openai"
+      : webResults.length > 0
+        ? "web"
+        : "knowledge-base",
   });
 
   const headers: Record<string, string> = {
@@ -180,13 +209,37 @@ export async function POST(request: Request) {
     "X-Ai-Citations": citationHeader(result.hits),
     "X-Ai-Personalized": String(learner.available),
     "X-Ai-Semantic": String(semanticHits.length),
+    "X-Ai-Web": String(webResults.length),
   };
   if (questionId) headers["X-Ai-Question-Id"] = questionId;
 
-  /* ── Мэдлэгийн санд юу ч олдсонгүй: зохиохгүй, шулуухан хэлнэ ── */
-  if (result.hits.length === 0) {
+  /* ── Санд ч, вэбэд ч олдсонгүй: зохиохгүй, шулуухан хэлнэ ── */
+  if (result.hits.length === 0 && webResults.length === 0) {
     return new Response(streamText(notFoundAnswer(message, result.nearMisses)), {
       headers: { ...headers, "X-Ai-Source": "not-found" },
+    });
+  }
+
+  /* ── Санд алга, вэбээс олдсон, түлхүүр байхгүй: хураангуйг өгнө ── */
+  if (result.hits.length === 0 && !apiKey) {
+    /* Вэбийн эх сурвалжийг ишлэлийн толгойд оруулна */
+    const webCitations = Buffer.from(
+      JSON.stringify(
+        webResults.slice(0, 5).map((item) => ({
+          label: item.title,
+          href: item.url,
+          kind: "web" as const,
+        })),
+      ),
+      "utf8",
+    ).toString("base64");
+
+    return new Response(streamText(webOnlyAnswer(message, webResults)), {
+      headers: {
+        ...headers,
+        "X-Ai-Citations": webCitations,
+        "X-Ai-Source": "web",
+      },
     });
   }
 
@@ -215,7 +268,8 @@ export async function POST(request: Request) {
             role: "system",
             content:
               buildSystemPrompt(mode, result.hits) +
-              personalizationPrompt(learner),
+              personalizationPrompt(learner) +
+              (webResults.length > 0 ? webContextPrompt(webResults) : ""),
           },
           ...(body.history ?? []).slice(-6),
           { role: "user", content: message },
@@ -224,10 +278,13 @@ export async function POST(request: Request) {
     });
 
     if (!upstream.ok || !upstream.body) {
-      return new Response(
-        streamText(buildFallbackAnswer(mode, message, result)),
-        { headers: { ...headers, "X-Ai-Source": "knowledge-base-fallback" } },
-      );
+      const text =
+        result.hits.length > 0
+          ? buildFallbackAnswer(mode, message, result)
+          : webOnlyAnswer(message, webResults);
+      return new Response(streamText(text), {
+        headers: { ...headers, "X-Ai-Source": "knowledge-base-fallback" },
+      });
     }
 
     /* SSE-г цэвэр текст болгон хөрвүүлнэ */
@@ -263,7 +320,11 @@ export async function POST(request: Request) {
       headers: { ...headers, "X-Ai-Source": "openai" },
     });
   } catch {
-    return new Response(streamText(buildFallbackAnswer(mode, message, result)), {
+    const text =
+      result.hits.length > 0
+        ? buildFallbackAnswer(mode, message, result)
+        : webOnlyAnswer(message, webResults);
+    return new Response(streamText(text), {
       headers: { ...headers, "X-Ai-Source": "knowledge-base-error" },
     });
   }

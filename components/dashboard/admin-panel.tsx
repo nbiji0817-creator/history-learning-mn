@@ -15,6 +15,7 @@ import type {
 import { Button, Card, Stat } from "@/components/ui/primitives";
 import { roleLabels } from "@/lib/auth";
 import { EmbeddingPanel } from "@/components/admin/embedding-panel";
+import { WebSearchPanel } from "@/components/admin/web-search-panel";
 import { cn, difficultyLabels, formatDate, questionTypeLabels } from "@/lib/utils";
 
 interface Stats {
@@ -108,6 +109,7 @@ export function AdminPanel({
   contentGaps,
   recentQuestions,
   embeddingStatus,
+  webProvider,
 }: {
   stats: Stats;
   lessons: Lesson[];
@@ -123,6 +125,7 @@ export function AdminPanel({
   contentGaps: ContentGapProps[];
   recentQuestions: RecentQuestionProps[];
   embeddingStatus: EmbeddingStatusProps;
+  webProvider: string;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -166,6 +169,7 @@ export function AdminPanel({
           gaps={contentGaps}
           recent={recentQuestions}
           embeddingStatus={embeddingStatus}
+          webProvider={webProvider}
         />
       ) : null}
       {tab === "users" ? <UsersTab users={users} /> : null}
@@ -258,15 +262,18 @@ function AiTab({
   gaps,
   recent,
   embeddingStatus,
+  webProvider,
 }: {
   stats: AiStatsProps;
   gaps: ContentGapProps[];
   recent: RecentQuestionProps[];
   embeddingStatus: EmbeddingStatusProps;
+  webProvider: string;
 }) {
   if (!stats.available) {
     return (
       <div className="space-y-6">
+      <WebSearchPanel provider={webProvider} />
       <EmbeddingPanel initial={embeddingStatus} />
       <Card>
         <h3 className="text-sm font-black">🤖 AI-ийн сурах гогцоо идэвхгүй</h3>
@@ -292,6 +299,7 @@ function AiTab({
 
   return (
     <div className="space-y-6">
+      <WebSearchPanel provider={webProvider} />
       <EmbeddingPanel initial={embeddingStatus} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
