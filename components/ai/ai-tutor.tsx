@@ -18,6 +18,8 @@ interface ChatMessage extends AiMessage {
   citations?: Citation[];
   questionId?: string;
   matched?: boolean;
+  /* Хэдэн гадаад эх сурвалж ашигласан (0 бол зөвхөн сурах бичиг) */
+  webCount?: number;
 }
 
 const KIND_ICONS: Record<string, string> = {
@@ -104,11 +106,12 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
 
       const questionId = response.headers.get("X-Ai-Question-Id") ?? undefined;
       const matched = response.headers.get("X-Ai-Matched") === "true";
+      const webCount = Number(response.headers.get("X-Ai-Web") ?? 0);
 
       setMessages((current) =>
         current.map((item) =>
           item.id === assistantId
-            ? { ...item, citations, questionId, matched }
+            ? { ...item, citations, questionId, matched, webCount }
             : item,
         ),
       );
@@ -236,23 +239,44 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
                   <>
                     <MessageBody content={message.content} />
 
+                    {message.role === "assistant" && (message.webCount ?? 0) > 0 ? (
+                      <p className="mt-3 rounded-lg bg-gold/10 px-3 py-2 text-[11px] font-semibold leading-5 text-fg-muted">
+                        🌐 Энэ хариулт манай сурах бичгээс биш, гадаад эх
+                        сурвалжаас авсан. Шалгалтад сурах бичгээ баримтлаарай.
+                      </p>
+                    ) : null}
+
                     {message.role === "assistant" &&
                     message.citations &&
                     message.citations.length > 0 ? (
                       <div className="mt-4 border-t border-line/60 pt-3">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-fg-muted">
-                          Эх сурвалж
+                          {(message.webCount ?? 0) > 0
+                            ? "Гадаад эх сурвалж"
+                            : "Эх сурвалж"}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {message.citations.map((citation) => (
-                            <Link
-                              key={citation.href + citation.label}
-                              href={citation.href}
-                              className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-medium transition hover:border-gold hover:text-gold"
-                            >
-                              {KIND_ICONS[citation.kind] ?? "🔗"} {citation.label}
-                            </Link>
-                          ))}
+                          {message.citations.map((citation) => {
+                            /* Гадаад холбоос шинэ табд нээгдэнэ */
+                            const external = citation.href.startsWith("http");
+                            return (
+                              <Link
+                                key={citation.href + citation.label}
+                                href={citation.href}
+                                {...(external
+                                  ? {
+                                      target: "_blank",
+                                      rel: "noreferrer noopener",
+                                    }
+                                  : {})}
+                                className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-medium transition hover:border-gold hover:text-gold"
+                              >
+                                {KIND_ICONS[citation.kind] ?? "🔗"}{" "}
+                                {citation.label}
+                                {external ? " ↗" : ""}
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : null}
