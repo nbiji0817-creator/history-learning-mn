@@ -14,7 +14,7 @@ export function StudentDashboard({
   lessons: Lesson[];
   achievements: Achievement[];
 }) {
-  const { progress, ready, reset } = useProgress();
+  const { progress, ready, synced, reset } = useProgress();
   const { user } = useAuth();
 
   if (!ready) {
@@ -237,14 +237,33 @@ export function StudentDashboard({
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={reset}>
+      <div className="flex flex-wrap items-center gap-3">
+        {synced ? (
+          <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+            ☁️ Бүртгэлд хадгалагдаж байна
+          </span>
+        ) : user ? (
+          <span className="rounded-full bg-gold/15 px-3 py-1.5 text-xs font-bold text-gold">
+            ⏳ Синк хийж байна…
+          </span>
+        ) : (
+          <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-bold text-fg-muted">
+            💾 Зөвхөн энэ браузерт хадгалагдаж байна
+          </span>
+        )}
+
+        {!user ? (
+          <Link
+            href="/login"
+            className="text-xs font-bold text-gold hover:underline"
+          >
+            Нэвтэрвэл бүх төхөөрөмжид синк хийгдэнэ →
+          </Link>
+        ) : null}
+
+        <Button variant="secondary" size="sm" onClick={reset}>
           Ахицыг цэвэрлэх
         </Button>
-        <p className="self-center text-xs text-fg-muted">
-          Ахиц одоогоор энэ браузерт хадгалагдаж байна. Supabase холбогдсоны
-          дараа бүх төхөөрөмжид синк хийгдэнэ.
-        </p>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { Button, Card } from "@/components/ui/primitives";
 import { roleLabels, useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot";
 type SignupRole = "student" | "parent" | "teacher";
 
 const roleOptions: { key: SignupRole; icon: string; hint: string }[] = [
@@ -18,7 +18,16 @@ const roleOptions: { key: SignupRole; icon: string; hint: string }[] = [
 ];
 
 export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
-  const { user, ready, configured, signIn, signUp, signOut, claimRole } = useAuth();
+  const {
+    user,
+    ready,
+    configured,
+    signIn,
+    signUp,
+    signOut,
+    claimRole,
+    requestPasswordReset,
+  } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -149,6 +158,19 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
     setError(null);
     setNotice(null);
 
+    if (mode === "forgot") {
+      const result = await requestPasswordReset(email);
+      setBusy(false);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setNotice(
+        `${email} хаяг руу нууц үг сэргээх холбоос илгээлээ. Захидлаа шалгаад холбоос дээр дарна уу. Ирээгүй бол спам хавтсаа хараарай.`,
+      );
+      return;
+    }
+
     if (mode === "signin") {
       const result = await signIn(email, password);
       setBusy(false);
@@ -218,6 +240,14 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
 
       <Card>
         {/* Табууд */}
+        {mode === "forgot" ? (
+          <div className="mb-6">
+            <h2 className="text-lg font-black">Нууц үг сэргээх</h2>
+            <p className="mt-2 text-sm leading-6 text-fg-muted">
+              Бүртгэлтэй имэйл хаягаа бичнэ үү. Сэргээх холбоос илгээнэ.
+            </p>
+          </div>
+        ) : (
         <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
           {(["signin", "signup"] as Mode[]).map((item) => (
             <button
@@ -237,6 +267,7 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
             </button>
           ))}
         </div>
+        )}
 
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" ? (
@@ -341,6 +372,7 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
             />
           </label>
 
+          {mode !== "forgot" ? (
           <label className="block">
             <span className="text-sm font-semibold">Нууц үг *</span>
             <input
@@ -354,6 +386,35 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
               minLength={6}
             />
           </label>
+          ) : null}
+
+          {mode === "signin" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setError(null);
+                setNotice(null);
+              }}
+              className="text-sm font-semibold text-gold hover:underline"
+            >
+              Нууц үгээ мартсан уу?
+            </button>
+          ) : null}
+
+          {mode === "forgot" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError(null);
+                setNotice(null);
+              }}
+              className="text-sm font-semibold text-fg-muted hover:text-fg"
+            >
+              ← Нэвтрэх рүү буцах
+            </button>
+          ) : null}
 
           {error ? (
             <p className="rounded-xl bg-clay/10 p-3 text-sm text-clay">{error}</p>
@@ -365,7 +426,13 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
           ) : null}
 
           <Button type="submit" size="lg" className="w-full" disabled={busy}>
-            {busy ? "Түр хүлээнэ үү…" : mode === "signin" ? "Нэвтрэх" : "Бүртгүүлэх"}
+            {busy
+              ? "Түр хүлээнэ үү…"
+              : mode === "signin"
+                ? "Нэвтрэх"
+                : mode === "forgot"
+                  ? "Сэргээх холбоос илгээх"
+                  : "Бүртгүүлэх"}
           </Button>
         </form>
       </Card>

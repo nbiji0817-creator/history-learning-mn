@@ -35,6 +35,16 @@ interface AuthContextValue {
     role: "parent" | "teacher",
     teacherCode?: string,
   ) => Promise<{ error: string | null }>;
+  /** Нууц үг сэргээх захидал илгээх */
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /** Шинэ нууц үг тогтоох (сэргээх холбоосоор орж ирсний дараа) */
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /** Профайлаа шинэчлэх */
+  updateProfile: (input: {
+    name?: string;
+    grade?: GradeNumber | null;
+    avatar?: string;
+  }) => Promise<{ error: string | null }>;
   isRole: (...roles: UserRole[]) => boolean;
 }
 
@@ -253,6 +263,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [configured, claimRole],
   );
 
+  const requestPasswordReset = useCallback(
+    async (email: string) => {
+      if (!configured) return { error: "Supabase тохируулаагүй байна." };
+
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/callback?next=/auth/reset`
+            : undefined,
+      });
+
+      return { error: error ? translateError(error.message) : null };
+    },
+    [configured],
+  );
+
+  const updatePassword = useCallback(
+    async (password: string) => {
+      if (!configured) return { error: "Supabase тохируулаагүй байна." };
+      if (password.length < 6) {
+        return { error: "Нууц үг дор хаяж 6 тэмдэгт байх ёстой." };
+      }
+
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
+
+      return { error: error ? translateError(error.message) : null };
+    },
+    [configured],
+  );
+
+  const updateProfile = useCallback(
+    async (input: { name?: string; grade?: GradeNumber | null; avatar?: string }) => {
+      if (!configured) return { error: "Supabase тохируулаагүй байна." };
+
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return { error: "Нэвтрээгүй байна." };
+
+      /*
+       * `role`-ыг ЭНД оруулахгүй. RLS policy нь хэрэглэгч өөрийн эрхийг
+       * өөрчлөхийг хориглодог тул оролдвол бүх шинэчлэл татгалзана.
+       */
+      const patch: Record<string, unknown> = {};
+      if (input.name !== undefined) patch.name = input.name.trim();
+      if (input.grade !== undefined) patch.grade = input.grade;
+      if (input.avatar !== undefined) patch.avatar = input.avatar;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(patch)
+        .eq("id", data.user.id);
+
+      if (error) return { error: error.message };
+
+      setUser(await loadProfile(data.user.id, data.user.email ?? ""));
+      return { error: null };
+    },
+    [configured, loadProfile],
+  );
+
   const signOut = useCallback(async () => {
     if (!configured) return;
     const supabase = createClient();
@@ -266,8 +338,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, ready, configured, signIn, signUp, signOut, claimRole, isRole }),
-    [user, ready, configured, signIn, signUp, signOut, claimRole, isRole],
+    () => ({
+      user,
+      ready,
+      configured,
+      signIn,
+      signUp,
+      signOut,
+      claimRole,
+      requestPasswordReset,
+      updatePassword,
+      updateProfile,
+      isRole,
+    }),
+    [
+      user,
+      ready,
+      configured,
+      signIn,
+      signUp,
+      signOut,
+      claimRole,
+      requestPasswordReset,
+      updatePassword,
+      updateProfile,
+      isRole,
+    ],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

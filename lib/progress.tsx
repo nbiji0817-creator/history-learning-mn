@@ -6,11 +6,22 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Progress, QuizAttempt } from "@/types";
 import { achievements } from "@/data/community";
+import { useAuth } from "@/lib/auth";
+import {
+  loadRemoteProgress,
+  mergeLocalIntoRemote,
+  pushAchievements,
+  pushGameScore,
+  pushLessonCompleted,
+  pushLessonViewed,
+  pushQuizAttempt,
+} from "@/lib/progress-sync";
 
 /**
  * Сурагчийн ахицыг хадгалах store.
@@ -38,6 +49,8 @@ const emptyProgress: Progress = {
 interface ProgressContextValue {
   progress: Progress;
   ready: boolean;
+  /** Ахиц Supabase-тай синк хийгдэж байгаа эсэх */
+  synced: boolean;
   markViewed: (lessonId: string) => void;
   markCompleted: (lessonId: string) => void;
   recordQuizAttempt: (attempt: Omit<QuizAttempt, "id" | "userId">) => void;
@@ -90,8 +103,27 @@ function evaluateAchievements(progress: Progress): string[] {
 }
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [progress, setProgress] = useState<Progress>(emptyProgress);
   const [ready, setReady] = useState(false);
+  const [synced, setSynced] = useState(false);
+
+  /*
+   * Хамгийн сүүлийн төлөвийг ref-д барина. Ингэснээр нэвтрэх effect болон
+   * дэвсгэрийн илгээлт нь `progress`-оос хамаарахгүй — илүүц дахин
+   * ажиллалт үүсэхгүй.
+   */
+  const progressRef = useRef<Progress>(emptyProgress);
+  const userRef = useRef<string | null>(null);
+
+  /* Ref-ийг render-ийн үед биш, effect дотор шинэчилнэ (React-ийн дүрэм) */
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  useEffect(() => {
+    userRef.current = user?.id ?? null;
+  }, [user]);
 
   useEffect(() => {
     try {
@@ -105,6 +137,54 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     }
     setReady(true);
   }, []);
+
+  /*
+   * Нэвтрэхэд серверийн ахицыг татна. Зочиноор цуглуулсан ажил байвал
+   * эхлээд сервер рүү нэгтгэж, дараа нь татна — ингэснээр юу ч алдагдахгүй.
+   */
+  useEffect(() => {
+    if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- гарахад синк тэмдэглэгээг арилгана
+      setSynced(false);
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      const local = progressRef.current;
+
+      if (local.completedLessonIds.length > 0 || local.achievementIds.length > 0) {
+        await mergeLocalIntoRemote(user.id, local);
+      }
+
+      const remote = await loadRemoteProgress(user.id);
+      if (!active || !remote) return;
+
+      setProgress((current) => {
+        /* Сервер дээрх нь эрх мэдэлтэй, гэхдээ илүү өндөр XP-г алдахгүй */
+        const merged: Progress = {
+          ...current,
+          ...remote,
+          userId: user.id,
+          xp: Math.max(current.xp, remote.xp ?? 0),
+          streak: Math.max(current.streak, remote.streak ?? 0),
+        } as Progress;
+
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        } catch {
+          /* ignore */
+        }
+        return merged;
+      });
+      setSynced(true);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const persist = useCallback((next: Progress) => {
     setProgress(next);
@@ -151,6 +231,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         }
         return withAchievements;
       });
+
+      /* Дэвсгэрт сервер рүү — амжилтгүй болсон ч UI саадгүй үргэлжилнэ */
+      const userId = userRef.current;
+      if (userId) void pushLessonViewed(userId, lessonId);
     },
     [touch],
   );
@@ -178,6 +262,20 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         }
         return withAchievements;
       });
+
+      if (userRef.current) {
+        void pushLessonCompleted(lessonId);
+        void pushAchievements(
+          userRef.current,
+          evaluateAchievements({
+            ...progressRef.current,
+            completedLessonIds: [
+              ...progressRef.current.completedLessonIds,
+              lessonId,
+            ],
+          }),
+        );
+      }
     },
     [touch],
   );
@@ -219,6 +317,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         }
         return withAchievements;
       });
+
+      if (userRef.current) void pushQuizAttempt(attempt);
     },
     [touch],
   );
@@ -245,6 +345,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         }
         return withAchievements;
       });
+
+      const userId = userRef.current;
+      if (userId) void pushGameScore(userId, gameSlug, score, xp);
     },
     [touch],
   );
@@ -257,13 +360,23 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     () => ({
       progress,
       ready,
+      synced,
       markViewed,
       markCompleted,
       recordQuizAttempt,
       recordGameScore,
       reset,
     }),
-    [progress, ready, markViewed, markCompleted, recordQuizAttempt, recordGameScore, reset],
+    [
+      progress,
+      ready,
+      synced,
+      markViewed,
+      markCompleted,
+      recordQuizAttempt,
+      recordGameScore,
+      reset,
+    ],
   );
 
   return <ProgressContext value={value}>{children}</ProgressContext>;

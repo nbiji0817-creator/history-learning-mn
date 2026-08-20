@@ -44,6 +44,14 @@ export async function GET() {
         siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "(тохируулаагүй)",
         teacherCodeSet: Boolean(process.env.TEACHER_INVITE_CODE),
         seedSecretSet: Boolean(process.env.SEED_SECRET),
+        openAiKeySet: Boolean(process.env.OPENAI_API_KEY?.trim()),
+        openAiKeyLength: (process.env.OPENAI_API_KEY ?? "").trim().length,
+        openAiModel: process.env.OPENAI_MODEL ?? "(default)",
+        webSearchProvider:
+          (process.env.GOOGLE_CSE_ID && process.env.GOOGLE_API_KEY && "google") ||
+          (process.env.TAVILY_API_KEY && "tavily") ||
+          (process.env.BRAVE_API_KEY && "brave") ||
+          "(тохируулаагүй)",
       },
     },
     { headers: { "Cache-Control": "no-store" } },
