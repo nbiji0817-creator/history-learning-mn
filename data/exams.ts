@@ -1,0 +1,156 @@
+import type { Exam } from "@/types";
+
+export const exams: Exam[] = [
+  {
+    slug: "grade9-topic",
+    kind: "grade9",
+    title: "9-р анги — сэдэвчилсэн тест",
+    subtitle: "Шинэ үеийн түүх",
+    description:
+      "1691–1921 оны хооронд болсон гол үйл явдлыг хамарсан сэдэвчилсэн тест. Хугацаагүй тул тайван бодож хариулаарай.",
+    icon: "📗",
+    questionCount: 10,
+    duration: 0,
+    difficulty: "medium",
+    topics: ["Чин улсын үе", "1911 оны хувьсгал", "Богд хаант Монгол"],
+    filter: { grades: [9] },
+  },
+  {
+    slug: "grade9-mock",
+    kind: "grade9",
+    title: "9-р анги — улсын шалгалтын загвар",
+    subtitle: "Хугацаатай симуляц",
+    description:
+      "Улсын шалгалтын загварын дагуу хугацаатай тест. Цаг хуваарилах дадлага хийхэд тохиромжтой.",
+    icon: "⏱️",
+    questionCount: 20,
+    duration: 40,
+    difficulty: "hard",
+    topics: ["Монголын шинэ үе", "Дэлхийн шинэ үе", "1921 он"],
+    filter: { grades: [9, 10] },
+  },
+  {
+    slug: "eesh-40",
+    kind: "eesh",
+    title: "ЭЕШ — 40 асуулт",
+    subtitle: "Элсэлтийн ерөнхий шалгалтын бэлтгэл",
+    description:
+      "Монгол болон дэлхийн түүхийг хамарсан 40 асуулттай хугацаатай шалгалт. ЭЕШ-ийн бодит нөхцөлд ойртуулсан.",
+    icon: "🎓",
+    questionCount: 40,
+    duration: 80,
+    difficulty: "hard",
+    topics: ["Монголын түүх", "Дэлхийн түүх", "Он цаг", "Түүхэн хүмүүс"],
+    filter: {},
+  },
+  {
+    slug: "eesh-60",
+    kind: "eesh",
+    title: "ЭЕШ — 60 асуулт",
+    subtitle: "Бүрэн хэмжээний симуляц",
+    description:
+      "Хамгийн бүрэн хэмжээний бэлтгэл шалгалт. Бүх эрин үе, бүх ангийн агуулгыг хамарна.",
+    icon: "🏆",
+    questionCount: 60,
+    duration: 120,
+    difficulty: "olympiad",
+    topics: ["Бүх сэдэв"],
+    filter: {},
+  },
+  {
+    slug: "state-exam",
+    kind: "state",
+    title: "Улсын шалгалт — жишиг материал",
+    subtitle: "12-р ангийн улсын шалгалт",
+    description:
+      "Улсын шалгалтын жишиг материалын дагуу бэлтгэсэн тест. Хариулт бүрд дэлгэрэнгүй тайлбар өгнө.",
+    icon: "📘",
+    questionCount: 30,
+    duration: 60,
+    difficulty: "hard",
+    topics: ["Монголын түүх", "Тусгаар тогтнол", "XX зуун"],
+    filter: { grades: [10, 11, 12] },
+  },
+  {
+    slug: "civil-beginner",
+    kind: "civil",
+    title: "Төрийн албаны шалгалт — Beginner",
+    subtitle: "Анхан шат",
+    description:
+      "Төрийн албан хаагчийн шалгалтын түүхийн хэсэгт бэлтгэх анхан шатны тест.",
+    icon: "🏛️",
+    questionCount: 10,
+    duration: 15,
+    difficulty: "easy",
+    topics: ["Монголын төрт ёс", "Үндсэн хууль"],
+    filter: { tags: ["turiin-alba"] },
+  },
+  {
+    slug: "civil-advanced",
+    kind: "civil",
+    title: "Төрийн албаны шалгалт — Advanced",
+    subtitle: "Ахисан шат",
+    description:
+      "Монголын төрт ёсны хөгжил, Үндсэн хууль, түүхэн он цагийг гүнзгий хамарсан тест.",
+    icon: "⚖️",
+    questionCount: 20,
+    duration: 30,
+    difficulty: "hard",
+    topics: ["Төрт ёс", "Их Монгол улс", "XX зуун", "Үндсэн хууль"],
+    filter: { tags: ["turiin-alba", "undsen-khuuli", "on-tsag"] },
+  },
+  {
+    slug: "era-ancient",
+    kind: "practice",
+    title: "Эрт үеийн дадлага тест",
+    subtitle: "МЭӨ 3000 – МЭ 476",
+    description:
+      "Эртний иргэншил, Хүннү, эртний Монгол нутгийн сэдвээр дадлага хийх тест.",
+    icon: "🏺",
+    questionCount: 12,
+    duration: 0,
+    difficulty: "easy",
+    topics: ["Эртний иргэншил", "Хүннү"],
+    filter: { eras: ["ancient"] },
+  },
+  {
+    slug: "era-medieval",
+    kind: "practice",
+    title: "Дундад үеийн дадлага тест",
+    subtitle: "476 – 1500",
+    description:
+      "Түрэг, Уйгур, Их Монгол улс, Юань улсын сэдвээр дадлага хийх тест.",
+    icon: "🏰",
+    questionCount: 15,
+    duration: 0,
+    difficulty: "medium",
+    topics: ["Их Монгол улс", "Юань улс", "Түрэг"],
+    filter: { eras: ["medieval"] },
+  },
+  {
+    slug: "era-contemporary",
+    kind: "practice",
+    title: "Орчин үеийн дадлага тест",
+    subtitle: "1918 – өнөөг хүртэл",
+    description:
+      "XX зууны Монгол, дэлхийн түүхийн сэдвээр дадлага хийх тест.",
+    icon: "🌍",
+    questionCount: 15,
+    duration: 0,
+    difficulty: "medium",
+    topics: ["БНМАУ", "Халхын гол", "Ардчилсан хувьсгал"],
+    filter: { eras: ["contemporary"] },
+  },
+];
+
+export const examMap = new Map<string, Exam>(
+  exams.map((exam) => [exam.slug, exam]),
+);
+
+export const examKindLabels: Record<string, string> = {
+  grade9: "9-р ангийн шалгалт",
+  eesh: "Элсэлтийн шалгалт",
+  state: "Улсын шалгалт",
+  civil: "Төрийн албаны шалгалт",
+  practice: "Дадлагын тест",
+};

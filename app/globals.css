@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* Класст суурилсан бараан горим (Tailwind v4). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * ДИЗАЙН СИСТЕМ — «Түүхээ мэдье»
+ * Өнгөний санаа: алтлаг (гол), хөх шөнө (суурь), хүрэн/улаан (өргөлт),
+ * parchment (цайвар горимын дэвсгэр).
+ */
+:root {
+  /* Гэрэл горим */
+  --bg: #fbf7ef;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f2ece0;
+  --fg: #1c1a17;
+  --fg-muted: #5c574e;
+  --border: #e3d9c6;
+
+  --gold: #c08a1e;
+  --gold-strong: #a8760f;
+  --ink: #1b2a41;
+  --clay: #a4472f;
+
+  --radius: 1rem;
+}
+
+.dark {
+  --bg: #0a1120;
+  --bg-elevated: #101a2e;
+  --bg-muted: #16233b;
+  --fg: #eef2f8;
+  --fg-muted: #9aa8bf;
+  --border: #22314d;
+
+  --gold: #f0b429;
+  --gold-strong: #ffc94a;
+  --ink: #dbe6f7;
+  --clay: #e0714f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--bg-elevated);
+  --color-muted: var(--bg-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-line: var(--border);
+  --color-gold: var(--gold);
+  --color-gold-strong: var(--gold-strong);
+  --color-ink: var(--ink);
+  --color-clay: var(--clay);
+
+  --font-sans: var(--font-geist-sans), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-geist-sans), "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Гар, keyboard-аар зорчиход тодорхой харагдах фокус */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--gold) 35%, transparent);
+  }
+}
+
+@layer utilities {
+  /* Гол дэвсгэр — эртний цаасны мэдрэмж (хөнгөн, GPU-д ачаалалгүй) */
+  .bg-parchment {
+    background-image:
+      radial-gradient(
+        circle at 20% 15%,
+        color-mix(in oklab, var(--gold) 12%, transparent),
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 85% 5%,
+        color-mix(in oklab, var(--clay) 10%, transparent),
+        transparent 40%
+      );
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Хэвтээ гүйдэг контейнер — хүснэгт, диаграм зэрэгт */
+  .scroll-x {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .animate-in {
+    animation: fade-up 0.4s ease-out both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Хөдөлгөөн багасгах тохиргоог хүндэтгэнэ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Хэвлэхэд навигаци, товчийг нуух */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
