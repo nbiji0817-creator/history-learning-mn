@@ -7,6 +7,8 @@ import {
   getContentGaps,
   getRecentQuestions,
 } from "@/lib/repo/ai-insights";
+import { getEmbeddingStatus } from "@/lib/ai/embeddings";
+import { buildCorpus } from "@/lib/ai/knowledge";
 import {
   getAnnouncements,
   getDbStatus,
@@ -50,6 +52,7 @@ export default async function AdminPage() {
     aiStats,
     contentGaps,
     recentQuestions,
+    embedding,
   ] =
     await Promise.all([
       getPlatformStats(),
@@ -64,6 +67,7 @@ export default async function AdminPage() {
       getAiStats(),
       getContentGaps(),
       getRecentQuestions(),
+      getEmbeddingStatus(),
     ]);
 
   return (
@@ -89,6 +93,11 @@ export default async function AdminPage() {
           aiStats={aiStats}
           contentGaps={contentGaps}
           recentQuestions={recentQuestions}
+          embeddingStatus={{
+            ...embedding,
+            corpusSize: buildCorpus(lessons).length,
+            openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+          }}
           currentUser={{
             name: current.profile.name,
             role: current.profile.role,

@@ -12,6 +12,7 @@ import {
   getLearnerContext,
   personalizationPrompt,
 } from "@/lib/ai/personalize";
+import { mergeHits, semanticSearch } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -131,7 +132,27 @@ export async function POST(request: Request) {
     corpus = buildCorpus();
   }
 
-  const result = retrieve(message, corpus);
+  const keywordResult = retrieve(message, corpus);
+
+  /*
+   * ХОЛИМОГ ХАЙЛТ
+   *
+   * Түлхүүр үгийн хайлт нь нэр, он цагийг олоход хүчтэй. Утгын хайлт нь
+   * өөр үгээр асуусныг олоход хүчтэй. Хоёуланг нь нэгтгэвэл хамгийн сайн.
+   *
+   * Утгын хайлт бэлэн биш (OPENAI_API_KEY эсвэл 0005 migration байхгүй)
+   * бол хоосон массив буцаах тул түлхүүр үгийн үр дүн хэвээр үлдэнэ.
+   */
+  const semanticHits = await semanticSearch(message);
+
+  const result =
+    semanticHits.length > 0
+      ? {
+          ...keywordResult,
+          hits: mergeHits(keywordResult.hits, semanticHits),
+          confident: keywordResult.confident || semanticHits.length > 0,
+        }
+      : keywordResult;
 
   /*
    * Сурагчийн анги, сул сэдвийг мэдвэл хариултаа тэр түвшинд тааруулна.
@@ -158,6 +179,7 @@ export async function POST(request: Request) {
     "X-Ai-Score": String(result.topScore),
     "X-Ai-Citations": citationHeader(result.hits),
     "X-Ai-Personalized": String(learner.available),
+    "X-Ai-Semantic": String(semanticHits.length),
   };
   if (questionId) headers["X-Ai-Question-Id"] = questionId;
 

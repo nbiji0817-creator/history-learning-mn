@@ -14,6 +14,7 @@ import type {
 } from "@/types";
 import { Button, Card, Stat } from "@/components/ui/primitives";
 import { roleLabels } from "@/lib/auth";
+import { EmbeddingPanel } from "@/components/admin/embedding-panel";
 import { cn, difficultyLabels, formatDate, questionTypeLabels } from "@/lib/utils";
 
 interface Stats {
@@ -49,6 +50,14 @@ const tabs: { key: Tab; label: string; icon: string }[] = [
   { key: "feedback", label: "Санал хүсэлт", icon: "💬" },
   { key: "news", label: "Мэдээ", icon: "📰" },
 ];
+
+export interface EmbeddingStatusProps {
+  total: number;
+  lastUpdated: string | null;
+  available: boolean;
+  corpusSize: number;
+  openAiConfigured: boolean;
+}
 
 export interface AiStatsProps {
   total: number;
@@ -98,6 +107,7 @@ export function AdminPanel({
   aiStats,
   contentGaps,
   recentQuestions,
+  embeddingStatus,
 }: {
   stats: Stats;
   lessons: Lesson[];
@@ -112,6 +122,7 @@ export function AdminPanel({
   aiStats: AiStatsProps;
   contentGaps: ContentGapProps[];
   recentQuestions: RecentQuestionProps[];
+  embeddingStatus: EmbeddingStatusProps;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -154,6 +165,7 @@ export function AdminPanel({
           stats={aiStats}
           gaps={contentGaps}
           recent={recentQuestions}
+          embeddingStatus={embeddingStatus}
         />
       ) : null}
       {tab === "users" ? <UsersTab users={users} /> : null}
@@ -245,13 +257,17 @@ function AiTab({
   stats,
   gaps,
   recent,
+  embeddingStatus,
 }: {
   stats: AiStatsProps;
   gaps: ContentGapProps[];
   recent: RecentQuestionProps[];
+  embeddingStatus: EmbeddingStatusProps;
 }) {
   if (!stats.available) {
     return (
+      <div className="space-y-6">
+      <EmbeddingPanel initial={embeddingStatus} />
       <Card>
         <h3 className="text-sm font-black">🤖 AI-ийн сурах гогцоо идэвхгүй</h3>
         <p className="mt-3 text-sm leading-7 text-fg-muted">
@@ -267,6 +283,7 @@ function AiTab({
           энд харж, түүнд нь хичээл нэмэх боломжтой болно.
         </p>
       </Card>
+      </div>
     );
   }
 
@@ -275,6 +292,8 @@ function AiTab({
 
   return (
     <div className="space-y-6">
+      <EmbeddingPanel initial={embeddingStatus} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon="💬" label="Нийт асуулт" value={stats.total} />
         <Stat
