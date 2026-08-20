@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Container, PageHeader } from "@/components/ui/page";
 import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 import { getAchievements, getLessons } from "@/lib/repo";
+import { requireUser } from "@/lib/auth-server";
 
 export const metadata: Metadata = {
   title: "Миний ахиц",
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
     "Үзсэн хичээл, тестийн оноо, XP, түвшин, сул болон хүчтэй сэдэв, амжилтын тэмдэг.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
+  await requireUser("/dashboard");
+
   const [lessons, achievements] = await Promise.all([
     getLessons(),
     getAchievements(),

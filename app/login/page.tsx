@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Container, PageHeader } from "@/components/ui/page";
-import { LoginPanel } from "@/components/auth/login-panel";
+import { AuthForm } from "@/components/auth/auth-form";
+import { Card } from "@/components/ui/primitives";
 
 export const metadata: Metadata = {
   title: "Нэвтрэх",
-  description: "Демо эрхээр нэвтэрч системийн бүх боломжийг туршиж үзнэ үү.",
+  description:
+    "Сурагч, эцэг эх, багшийн эрхээр бүртгүүлж нэвтэрч, ахицаа хадгалаарай.",
+  robots: { index: false, follow: false },
 };
 
 export default function LoginPage() {
@@ -12,14 +16,22 @@ export default function LoginPage() {
     <>
       <PageHeader
         eyebrow="Нэвтрэх"
-        title="Демо эрхээр нэвтрэх"
+        title="Бүртгүүлэх ба нэвтрэх"
         icon="🔑"
-        description="Энэ бол демо хувилбар. Нууц үг шаардлагагүй бөгөөд мэдээлэл зөвхөн таны браузерт хадгалагдана."
+        description="Нэвтэрснээр ахиц, оноо, амжилтын тэмдэг хадгалагдаж, бүх төхөөрөмж дээр синк хийгдэнэ."
       />
 
       <Container className="py-10">
-        <div className="mx-auto max-w-2xl">
-          <LoginPanel />
+        <div className="mx-auto max-w-lg">
+          <Suspense
+            fallback={
+              <Card>
+                <p className="text-sm text-fg-muted">Ачаалж байна…</p>
+              </Card>
+            }
+          >
+            <AuthForm />
+          </Suspense>
         </div>
       </Container>
     </>

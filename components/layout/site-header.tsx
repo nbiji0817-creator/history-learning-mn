@@ -103,7 +103,13 @@ export function SiteHeader() {
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
               <Link
-                href={user.role === "parent" ? "/parent" : "/dashboard"}
+                href={
+                  user.role === "parent"
+                    ? "/parent"
+                    : user.role === "teacher" || user.role === "admin"
+                      ? "/admin"
+                      : "/dashboard"
+                }
                 className="flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold transition hover:bg-muted"
               >
                 <span aria-hidden>{user.avatar}</span>
@@ -111,7 +117,7 @@ export function SiteHeader() {
               </Link>
               <button
                 type="button"
-                onClick={signOut}
+                onClick={() => void signOut()}
                 className="rounded-lg p-2 text-fg-muted transition hover:bg-muted hover:text-fg"
                 aria-label="Гарах"
               >

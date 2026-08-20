@@ -10,9 +10,10 @@ import type {
   Lesson,
   Question,
   User,
+  UserRole,
 } from "@/types";
 import { Button, Card, Stat } from "@/components/ui/primitives";
-import { roleLabels, useAuth } from "@/lib/auth";
+import { roleLabels } from "@/lib/auth";
 import { cn, difficultyLabels, formatDate, questionTypeLabels } from "@/lib/utils";
 
 interface Stats {
@@ -59,6 +60,7 @@ export function AdminPanel({
   users,
   announcements,
   dbStatus,
+  currentUser,
 }: {
   stats: Stats;
   lessons: Lesson[];
@@ -69,70 +71,16 @@ export function AdminPanel({
   users: User[];
   announcements: Announcement[];
   dbStatus: DbStatusProps;
+  currentUser: { name: string; role: UserRole; email: string };
 }) {
-  const { user, signInAs, isRole } = useAuth();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
-
-  /* ── Демо хандалтын хаалга ── */
-  if (!isRole("teacher", "admin")) {
-    return (
-      <div className="mx-auto max-w-md">
-        <Card>
-          <div className="text-center text-5xl" aria-hidden>
-            🔐
-          </div>
-          <h2 className="mt-4 text-center text-xl font-black">
-            Багш / Админы хандалт
-          </h2>
-          <p className="mt-3 text-center text-sm leading-6 text-fg-muted">
-            Демо хувилбарт нэвтрэх код: <b>1234</b>
-          </p>
-
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (code.trim() === "1234") {
-                setError(null);
-                signInAs("teacher");
-              } else {
-                setError("Код буруу байна.");
-              }
-            }}
-            className="mt-6 space-y-3"
-          >
-            <input
-              type="password"
-              inputMode="numeric"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="Код"
-              className="w-full rounded-xl border border-line bg-muted/40 px-4 py-3 text-center text-lg tracking-[0.4em] outline-none focus:border-gold"
-              aria-label="Демо код"
-            />
-            {error ? <p className="text-sm text-clay">{error}</p> : null}
-            <Button type="submit" className="w-full">
-              Нэвтрэх
-            </Button>
-          </form>
-
-          <p className="mt-6 rounded-xl bg-clay/10 p-4 text-xs leading-6 text-fg-muted">
-            <b className="text-clay">Анхаар:</b> Энэ код зөвхөн демо зориулалттай
-            бөгөөд ямар ч бодит хамгаалалт өгөхгүй. Production-д Supabase Auth,
-            role-based authorization болон RLS ашиглана —{" "}
-            <code>supabase/migrations/0002_rls.sql</code>-ыг үз.
-          </p>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm text-fg-muted">
-          Нэвтэрсэн: <b>{user?.name}</b> ({user ? roleLabels[user.role] : ""})
+          Нэвтэрсэн: <b>{currentUser.name}</b> ({roleLabels[currentUser.role]}) ·{" "}
+          {currentUser.email}
         </p>
       </div>
 

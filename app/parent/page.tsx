@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Container, PageHeader } from "@/components/ui/page";
 import { ParentView } from "@/components/dashboard/parent-view";
 import { getAnnouncements, getLessons } from "@/lib/repo";
+import { requireRole } from "@/lib/auth-server";
 
 export const metadata: Metadata = {
   title: "Эцэг эхийн хэсэг",
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
     "Хүүхдийн үзсэн хичээл, тестийн оноо, ахиц, тоглосон тоглоом болон системийн мэдээг харах.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ParentPage() {
+  await requireRole(["parent", "teacher", "admin"], "/parent");
+
   const [lessons, announcements] = await Promise.all([
     getLessons(),
     getAnnouncements(),

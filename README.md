@@ -65,7 +65,8 @@ data/          Бүх контент (демо өгөгдөл)
 lib/
   repo/        ⭐ Өгөгдөл авах давхарга — Supabase руу шилжих цэг
   progress.tsx XP, түвшин, streak, badge, сэдвийн эзэмшил
-  auth.tsx     Демо нэвтрэлт (Phase 3-д Supabase Auth-аар солино)
+  auth.tsx     Supabase Auth (client)
+  auth-server.ts ⭐ Серверийн эрхийн шалгалт — жинхэнэ хамгаалалт
   theme.tsx    Dark / light
   ai/          Мэдлэгийн сан (RAG-lite)
   supabase/    Browser / server / admin client
@@ -127,8 +128,8 @@ UI-д ямар ч засвар шаардлагагүй. Функцууд аль
 | Phase | Агуулга | Төлөв |
 |---|---|---|
 | 1 | UI + routing + демо өгөгдөл | ✅ Дууссан |
-| 2 | Supabase database | 🟡 SQL бэлэн, холбох үлдсэн |
-| 3 | Authentication + roles | 🟡 Демо ажиллаж байна |
+| 2 | Supabase database | ✅ Холбогдсон |
+| 3 | Authentication + roles | ✅ Supabase Auth |
 | 4 | Хичээл | ✅ |
 | 5 | Тестийн хөдөлгүүр | ✅ |
 | 6 | Тоглоом | ✅ (6/8) |
@@ -137,7 +138,7 @@ UI-д ямар ч засвар шаардлагагүй. Функцууд аль
 | 9 | Admin CMS | 🟡 Харах хэсэг бэлэн, засах хэсэг үлдсэн |
 | 10 | Analytics + gamification | ✅ XP/badge/streak, 🟡 leaderboard |
 | 11 | Симуляц + газрын зураг | 🟡 Симуляц ✅, бодит газрын зураг үлдсэн |
-| 12 | Production deployment | ⬜ |
+| 12 | Production deployment | ✅ Vercel |
 
 ---
 
@@ -215,22 +216,51 @@ update public.profiles set role = 'admin' where email = 'таны@имэйл.mn'
 
 ---
 
-## PHASE 3: Authentication
+## PHASE 3: Authentication ✅
 
-Одоогийн `lib/auth.tsx` нь **демо** — нууц үг шалгахгүй, localStorage
-ашиглана. Production-д:
+Нэвтрэлт нь **Supabase Auth (имэйл + нууц үг)** дээр бүрэн ажиллана.
 
-1. Supabase Dashboard → Authentication → Providers → Email идэвхжүүлнэ
-2. `lib/auth.tsx`-ыг `lib/supabase/client.ts`-ийн `auth` API-аар солино
-3. `middleware.ts` нэмж session сэргээнэ
+### Эрхийн загвар
 
-**Эрхийн бодит шалгалт нь client дээр биш, `0002_rls.sql` дотор байна.**
-Client дээрх `role` нь зөвхөн юуг харуулахыг тохируулна.
+| Эрх | Хэрхэн авах | Юу хийж чадах |
+|---|---|---|
+| `student` | Өөрөө бүртгүүлнэ | Хичээл, тест, тоглоом, өөрийн ахиц |
+| `parent` | Өөрөө бүртгүүлнэ | Зөвхөн холбогдсон хүүхдийнхээ мэдээлэл |
+| `teacher` | **Урилгын код** шаардлагатай | Агуулга, статистик, санал хүсэлт |
+| `admin` | **Зөвхөн SQL-ээр** | Бүх эрх |
 
-Одоогийн демо код `1234` нь зөвхөн `/admin` хэсгийг үзүүлэх зорилготой,
-ямар ч бодит хамгаалалт өгөхгүй.
+Админ эрх олгох:
 
----
+```sql
+update public.profiles set role = 'admin' where email = 'таны@имэйл.mn';
+```
+
+### Хамгаалалтын гурван давхарга
+
+1. **`proxy.ts`** — хүсэлт бүрд session сэргээнэ
+   (Next.js 16-д `middleware.ts` хуучирч `proxy.ts` болсон)
+2. **`lib/auth-server.ts`** — хуудсанд нэвтрэх эрхийг СЕРВЕР дээр шалгана
+   (`requireUser`, `requireRole`)
+3. **RLS** (`0002_rls.sql`) — өгөгдлийн сангийн түвшний эцсийн хамгаалалт
+
+`lib/auth.tsx` доторх `useAuth()` нь **зөвхөн UI-д** зориулагдсан. Браузерын
+консолоос түүнийг хуурсан ч дата сан юу ч өгөхгүй.
+
+Эрх ахиулах нь `/api/auth/claim-role` дээр хийгдэх ба хэрэглэгчийг **зөвхөн
+session-аас** тодорхойлно — client-ийн илгээсэн `userId`-д хэзээ ч итгэхгүй.
+
+### Supabase дээр тохируулах
+
+**Authentication → Providers → Email** идэвхжүүлнэ.
+
+**Authentication → URL Configuration**:
+- Site URL: `https://<таны-домэйн>.vercel.app`
+- Redirect URLs: `https://<таны-домэйн>.vercel.app/auth/callback`
+  болон `http://localhost:3000/auth/callback`
+
+**Имэйл баталгаажуулалт**: анхдагчаар асаалттай. Сургуулийн дотоод хэрэглээнд
+хүндрэлтэй бол Authentication → Providers → Email → «Confirm email»-ыг
+унтраана. Тэгвэл бүртгүүлмэгц шууд нэвтэрнэ.
 
 ## GitHub
 
