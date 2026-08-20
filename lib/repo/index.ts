@@ -53,6 +53,7 @@ import {
   getQuestionsFromDb,
   getSourcesFromDb,
 } from "./supabase";
+import { getFeedbackFromDb } from "./admin";
 
 export { getDbStatus } from "./supabase";
 export type { DbStatus } from "./supabase";
@@ -259,8 +260,16 @@ export const getAchievements = cache(async () => {
   return (await getAchievementsFromDb()) ?? localAchievements;
 });
 
+/**
+ * Санал хүсэлт — Supabase-аас, боломжгүй бол демо өгөгдөл.
+ *
+ * Багш/админ нь бүх саналыг, энгийн хэрэглэгч зөвхөн өөрийнхийг харна
+ * (RLS шийднэ). Хүснэгт хоосон байвал демо руу УНАХГҮЙ — хоосон нь
+ * бодит хариу, «санал ирээгүй байна» гэсэн үг.
+ */
 export async function getFeedback(): Promise<Feedback[]> {
-  return demoFeedback;
+  const fromDb = await getFeedbackFromDb();
+  return fromDb ?? demoFeedback;
 }
 
 export async function getUsers(): Promise<User[]> {

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Lesson, Question } from "@/types";
+import type { Feedback, Lesson, Question } from "@/types";
 import { createClient } from "@/lib/supabase/server";
 import { mapLesson, mapQuestion } from "./mappers";
 
@@ -85,6 +85,42 @@ export async function getQuestionByIdForAdmin(
 
     if (error || !data) return null;
     return mapQuestion(data as Row);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Сурагч, эцэг эхийн санал хүсэлт.
+ *
+ * RLS нь багш/админд бүгдийг, энгийн хэрэглэгчид зөвхөн өөрийнхийг
+ * харуулна. Хүснэгт бэлэн биш эсвэл алдаа гарвал `null` буцаана —
+ * дуудагч нь демо өгөгдөл рүү уначихна.
+ */
+export async function getFeedbackFromDb(): Promise<Feedback[] | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("feedback")
+      .select("id, name, user_type, kind, title, body, rating, resolved, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data) return null;
+
+    return (data as Row[]).map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? "Нэрээ нууцалсан"),
+      userType: (row.user_type === "parent" ? "parent" : "student") as
+        | "student"
+        | "parent",
+      kind: (row.kind ?? "other") as Feedback["kind"],
+      title: String(row.title ?? ""),
+      body: String(row.body ?? ""),
+      rating: Number(row.rating ?? 0),
+      createdAt: String(row.created_at ?? "").slice(0, 10),
+      resolved: Boolean(row.resolved),
+    }));
   } catch {
     return null;
   }

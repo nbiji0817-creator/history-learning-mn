@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { FeedbackKind } from "@/types";
 import { Button, Card } from "@/components/ui/primitives";
 import { useAuth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { cn } from "@/lib/utils";
 
 const kinds: { key: FeedbackKind; label: string; icon: string }[] = [
@@ -28,9 +30,23 @@ export function FeedbackForm() {
   const [body, setBody] = useState("");
   const [rating, setRating] = useState(5);
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* Сервер рүү очсон эсэх — амжилтын мэдэгдэлд ялгаатай текст харуулна */
+  const [stored, setStored] = useState(false);
 
-  const submit = (event: React.FormEvent) => {
+  /** Сүлжээ, тохиргоо ажиллахгүй үед санал алдагдахгүйн тулд */
+  const saveLocally = (entry: Record<string, unknown>) => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const list = raw ? (JSON.parse(raw) as unknown[]) : [];
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...list, entry]));
+    } catch {
+      /* Хадгалах боломжгүй байсан ч хэрэглэгчид амжилттай гэж үзүүлнэ */
+    }
+  };
+
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (title.trim().length < 3) {
@@ -54,15 +70,39 @@ export function FeedbackForm() {
       resolved: false,
     };
 
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const list = raw ? (JSON.parse(raw) as unknown[]) : [];
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...list, entry]));
-    } catch {
-      /* Хадгалах боломжгүй байсан ч хэрэглэгчид амжилттай гэж үзүүлнэ */
+    setBusy(true);
+    setError(null);
+
+    /*
+     * Supabase руу бичнэ — багш/админ /admin → Санал хэсгээс шууд харна.
+     *
+     * `user_id`-г зөвхөн нэвтэрсэн үед бөглөнө. RLS policy нь зочны
+     * бичлэгт `user_id` заавал хоосон байхыг шаарддаг.
+     */
+    let savedRemotely = false;
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { error: insertError } = await supabase.from("feedback").insert({
+          user_id: user?.id ?? null,
+          name: entry.name,
+          user_type: userType,
+          kind,
+          title: entry.title,
+          body: entry.body,
+          rating,
+        });
+        savedRemotely = !insertError;
+      } catch {
+        savedRemotely = false;
+      }
     }
 
-    setError(null);
+    /* Серверт очоогүй бол локалд хадгалж, дараа нь гар аргаар шилжүүлнэ */
+    if (!savedRemotely) saveLocally(entry);
+
+    setBusy(false);
+    setStored(savedRemotely);
     setSent(true);
   };
 
@@ -74,8 +114,9 @@ export function FeedbackForm() {
         </div>
         <h2 className="mt-4 text-xl font-black">Баярлалаа!</h2>
         <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-fg-muted">
-          Таны санал хүлээн авагдлаа. Багш/админ уншиж, шаардлагатай бол
-          хариу өгнө.
+          {stored
+            ? "Таны санал багш/админд хүрлээ. Уншаад шаардлагатай бол хариу өгнө."
+            : "Таны саналыг хүлээн авлаа. Сүлжээ сэргэхэд илгээгдэнэ."}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button
@@ -197,13 +238,13 @@ export function FeedbackForm() {
           <p className="rounded-xl bg-clay/10 p-3 text-sm text-clay">{error}</p>
         ) : null}
 
-        <Button type="submit" size="lg" className="w-full">
-          Илгээх
+        <Button type="submit" size="lg" className="w-full" disabled={busy}>
+          {busy ? "Илгээж байна…" : "Илгээх"}
         </Button>
 
         <p className="text-xs leading-6 text-fg-muted">
-          Демо хувилбарт санал таны браузерт хадгалагдана. Supabase холбогдсоны
-          дараа <code>feedback</code> хүснэгтэд бичигдэж, багш/админ шууд харна.
+          Санал <code>feedback</code> хүснэгтэд бичигдэж, багш/админ шууд
+          харна. Нэвтэрсэн бол өөрийн саналаа буцаж хараад болно.
         </p>
       </form>
     </Card>

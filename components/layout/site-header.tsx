@@ -14,6 +14,7 @@ import {
   Search,
   Sun,
   User as UserIcon,
+  UserCog,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -115,6 +116,14 @@ export function SiteHeader() {
                 <span aria-hidden>{user.avatar}</span>
                 <span className="hidden md:inline">{roleLabels[user.role]}</span>
               </Link>
+              <Link
+                href="/profile"
+                className="rounded-lg p-2 text-fg-muted transition hover:bg-muted hover:text-fg"
+                aria-label="Миний профайл"
+                title="Миний профайл"
+              >
+                <UserCog className="h-4 w-4" />
+              </Link>
               <button
                 type="button"
                 onClick={() => void signOut()}
@@ -176,7 +185,29 @@ export function SiteHeader() {
             >
               📜 Эх сурвалж
             </Link>
-            {!user ? (
+            {user ? (
+              <>
+                <Link
+                  href="/profile"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-fg-muted"
+                >
+                  <UserCog className="h-4 w-4" />
+                  Миний профайл
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    void signOut();
+                  }}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-fg-muted"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Гарах
+                </button>
+              </>
+            ) : (
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
@@ -184,7 +215,7 @@ export function SiteHeader() {
               >
                 Нэвтрэх
               </Link>
-            ) : null}
+            )}
           </Container>
         </div>
       ) : null}
