@@ -1,4 +1,10 @@
 import { createBrowserClient } from "@supabase/ssr";
+import {
+  isSupabaseConfigured as configured,
+  supabaseAnonKey,
+  supabaseConfigHint,
+  supabaseUrl,
+} from "./config";
 
 /**
  * Браузерын Supabase client.
@@ -6,23 +12,16 @@ import { createBrowserClient } from "@supabase/ssr";
  * Бодит хамгаалалт нь өгөгдлийн сангийн RLS дээр байна.
  */
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      "Supabase тохируулаагүй байна. .env.local дотор NEXT_PUBLIC_SUPABASE_URL " +
-        "болон NEXT_PUBLIC_SUPABASE_ANON_KEY-г тохируулна уу (.env.example-ыг үз).",
-    );
+  if (!configured()) {
+    throw new Error(supabaseConfigHint());
   }
 
-  return createBrowserClient(url, key);
+  return createBrowserClient(supabaseUrl(), supabaseAnonKey());
 }
 
-/** Supabase тохируулагдсан эсэх — Phase 1-д демо өгөгдөл рүү унана. */
-export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
-}
+/*
+ * Нэг эх сурвалж: шалгалтыг `./config` дотор л хийнэ. Өмнө нь энд
+ * сул хувилбар (зөвхөн «хоосон биш үү») байсан тул буруу хаягийг
+ * зөв гэж үзээд нэвтрэлт чимээгүй унадаг байв.
+ */
+export { isSupabaseConfigured, supabaseConfigHint } from "./config";

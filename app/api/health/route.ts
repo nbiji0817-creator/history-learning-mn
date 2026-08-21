@@ -1,5 +1,6 @@
 import { getDbStatus } from "@/lib/repo";
 import { webSearchProvider } from "@/lib/ai/web-search";
+import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/config";
 
 /**
  * Орчны хувьсагчийн төлөвийг хүн уншихаар тайлбарлана.
@@ -37,8 +38,9 @@ export async function GET() {
    * нийтийн (client bundle дотор ил байдаг) тул үүнийг үзүүлэх нь аюулгүй.
    * Түлхүүрүүдийг ХАРУУЛАХГҮЙ — зөвхөн тохируулсан эсэх, уртыг нь.
    */
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  /* Тайрсан утгыг харуулна — зай, tab нь нүдэнд харагддаггүй */
+  const url = supabaseUrl();
+  const anonKey = supabaseAnonKey();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
   const looksLikeSupabase = /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(

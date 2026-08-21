@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { GradeNumber } from "@/types";
 import { Button, Card } from "@/components/ui/primitives";
 import { roleLabels, useAuth } from "@/lib/auth";
+import { supabaseConfigHint } from "@/lib/supabase/config";
 import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "signup" | "forgot";
@@ -55,11 +56,31 @@ export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
           Supabase тохируулаагүй тул нэвтрэх боломжгүй. Систем нийтийн
           контентыг үзэх горимд ажиллаж байна.
         </p>
+        {/* Яг ЮУ буруу байгааг нэрлэнэ — «тохируулаагүй» гэдэг нь
+            хувьсагч байхгүй, буруу бичсэн, эсвэл зай орсон гурван
+            өөр шалтгаантай байж болно. */}
+        <p className="mt-4 rounded-xl bg-clay/10 p-4 text-sm leading-7 text-clay">
+          <b>Шалтгаан:</b> {supabaseConfigHint()}
+        </p>
+
+        <p className="mt-4 text-sm leading-7 text-fg-muted">
+          Админ бол Vercel → Settings → Environment Variables хэсэгт{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5">
+            NEXT_PUBLIC_SUPABASE_URL
+          </code>{" "}
+          болон{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5">
+            NEXT_PUBLIC_SUPABASE_ANON_KEY
+          </code>{" "}
+          мөрийг шалгаад дахин deploy хийнэ үү. Утгын урд, ард зай
+          үлдээгүй эсэхийг сайтар нягтлаарай.
+        </p>
+
         <p className="mt-3 text-sm text-fg-muted">
-          Тохируулахын тулд <code className="rounded bg-muted px-1.5 py-0.5">.env.local</code>{" "}
-          дотор <code className="rounded bg-muted px-1.5 py-0.5">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
-          болон <code className="rounded bg-muted px-1.5 py-0.5">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>{" "}
-          нэмнэ үү.
+          Дэлгэрэнгүй оношилгоо:{" "}
+          <a href="/api/health" className="font-bold text-gold hover:underline">
+            /api/health
+          </a>
         </p>
       </Card>
     );

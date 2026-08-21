@@ -2,21 +2,24 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import {
+  isSupabaseConfigured,
+  supabaseAnonKey,
+  supabaseConfigHint,
+  supabaseUrl,
+} from "./config";
 
 /**
  * Серверийн Supabase client (Server Component, Route Handler, Server Action).
  * Хэрэглэгчийн session-ыг cookie-оор дамжуулан уншина — иймд RLS зөв ажиллана.
  */
 export async function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      "Supabase тохируулаагүй байна (.env.example-ыг үз).",
-    );
+  if (!isSupabaseConfigured()) {
+    throw new Error(supabaseConfigHint());
   }
 
+  const url = supabaseUrl();
+  const key = supabaseAnonKey();
   const cookieStore = await cookies();
 
   return createServerClient(url, key, {
@@ -45,8 +48,8 @@ export async function createClient() {
  * Энэ түлхүүрийг хэзээ ч client-д дамжуулж болохгүй.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = supabaseUrl();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!url || !key) {
     throw new Error(
