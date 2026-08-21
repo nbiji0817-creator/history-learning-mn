@@ -278,12 +278,33 @@ export async function POST(request: Request) {
     });
 
     if (!upstream.ok || !upstream.body) {
+      /*
+       * OpenAI бүтэлгүйтвэл сурагч үүнийг мэдэх шаардлагагүй — мэдлэгийн
+       * сангийн хариулт хэвийн үргэлжилнэ. Гэхдээ админ ЯАГААД гэдгийг
+       * мэдэх ёстой тул шалтгааныг толгойд тавина. Түлхүүрийн утга
+       * хэзээ ч энд орохгүй — зөвхөн статус, OpenAI-ийн мессеж.
+       */
+      let reason = `HTTP ${upstream.status}`;
+      try {
+        const errorBody = await upstream.json();
+        const detail = errorBody?.error?.message;
+        if (detail) reason += `: ${String(detail).slice(0, 180)}`;
+      } catch {
+        /* Биегүй хариу — статус л хангалттай */
+      }
+
       const text =
         result.hits.length > 0
           ? buildFallbackAnswer(mode, message, result)
           : webOnlyAnswer(message, webResults);
+
       return new Response(streamText(text), {
-        headers: { ...headers, "X-Ai-Source": "knowledge-base-fallback" },
+        headers: {
+          ...headers,
+          "X-Ai-Source": "knowledge-base-fallback",
+          /* Толгойд зөвхөн ASCII зөвшөөрөгддөг */
+          "X-Ai-Openai-Error": encodeURIComponent(reason),
+        },
       });
     }
 
