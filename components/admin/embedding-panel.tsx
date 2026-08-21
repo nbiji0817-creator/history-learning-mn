@@ -18,6 +18,8 @@ export function EmbeddingPanel({
     available: boolean;
     corpusSize: number;
     openAiConfigured: boolean;
+    /** Тохиргоо буруу бол яг юу буруу байгааг тайлбарласан мөр */
+    openAiProblem?: string | null;
   };
 }) {
   const [status, setStatus] = useState(initial);
@@ -85,11 +87,21 @@ export function EmbeddingPanel({
       </p>
 
       {!status.openAiConfigured ? (
-        <p className="mt-4 rounded-xl bg-clay/10 p-4 text-sm leading-7 text-clay">
-          <b>OPENAI_API_KEY тохируулаагүй байна.</b> Ойлголтын хайлт
-          идэвхжүүлэхэд шаардлагатай. Vercel → Environment Variables хэсэгт
-          нэмээд дахин deploy хийнэ үү.
-        </p>
+        <div className="mt-4 rounded-xl bg-clay/10 p-4 text-sm leading-7 text-clay">
+          {/* «Тохируулаагүй», «дутуу буулгасан», «буруу эхэлсэн» гурав
+              өөр асуудал — аль нь болохыг сервер тодорхойлж өгнө */}
+          <b>{status.openAiProblem ?? "OPENAI_API_KEY тохируулаагүй байна."}</b>
+          <p className="mt-2">
+            Vercel → Settings → Environment Variables хэсэгт{" "}
+            <code className="rounded bg-surface px-1.5 py-0.5">
+              OPENAI_API_KEY
+            </code>{" "}
+            мөрийг засаад <b>Production</b> сонгогдсоныг шалгаж, дахин
+            deploy хийнэ үү. Түлхүүрийг{" "}
+            <code className="rounded bg-surface px-1.5 py-0.5">sk-</code>
+            -ээс эхлээд төгсгөл хүртэл нь бүтнээр хуулна.
+          </p>
+        </div>
       ) : !status.available ? (
         <p className="mt-4 rounded-xl bg-gold/10 p-4 text-sm leading-7 text-fg-muted">
           <b>Хүснэгт бэлэн биш байна.</b> Supabase SQL Editor дээр{" "}

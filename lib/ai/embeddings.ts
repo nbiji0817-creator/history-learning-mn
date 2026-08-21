@@ -19,6 +19,38 @@ import type { KnowledgeHit } from "./knowledge";
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 export const EMBEDDING_DIMENSIONS = 1536;
 
+/**
+ * Түлхүүрийн хэлбэрийг шалгана — дуудахаас ӨМНӨ.
+ *
+ * OpenAI-ийн түлхүүр «sk-» -ээр эхэлж, 100-аас урт байдаг. Хэрэглэгч
+ * Vercel-ийн нүдэнд буулгахдаа хэсэгчлэн хуулах, эсвэл өөр зүйл
+ * бичих нь элбэг. Тэр тохиолдолд OpenAI 401 буцаадаг ч бид үүнийг
+ * урьдчилж, ойлгомжтой монголоор хэлж чадна.
+ *
+ * Утгыг НЬ ХЭЗЭЭ Ч буцаахгүй — зөвхөн асуудлын тайлбарыг.
+ */
+export function describeOpenAiKey(): string | null {
+  const raw = process.env.OPENAI_API_KEY;
+
+  if (raw === undefined) return "OPENAI_API_KEY тохируулаагүй байна.";
+
+  const key = raw.trim();
+  if (key === "") {
+    return "OPENAI_API_KEY мөр үүссэн ч утга нь хоосон байна.";
+  }
+  if (!key.startsWith("sk-")) {
+    return "OPENAI_API_KEY буруу байна: жинхэнэ түлхүүр «sk-» гэж эхэлдэг.";
+  }
+  if (key.length < 40) {
+    return (
+      `OPENAI_API_KEY дутуу байна: ${key.length} тэмдэгт байна, ` +
+      "жинхэнэ түлхүүр 100-аас урт. Түлхүүрээ бүтнээр нь хуулж буулгана уу."
+    );
+  }
+
+  return null;
+}
+
 /** Текстийг вектор болгоно. Түлхүүр байхгүй бол null. */
 export async function embed(text: string): Promise<number[] | null> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -48,17 +80,28 @@ export async function embed(text: string): Promise<number[] | null> {
   }
 }
 
-/** Олон текстийг нэг дуудлагаар — үүсгэх ажилд хурдан. */
-export async function embedBatch(texts: string[]): Promise<number[][] | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || texts.length === 0) return null;
+/**
+ * Олон текстийг нэг дуудлагаар, АЛДААНЫ ШАЛТГААНТАЙГААР.
+ *
+ * Сурагчид харагддаг замд алдааг чимээгүй залгих нь зөв — хайлт
+ * түлхүүр үгээр үргэлжилнэ. Харин админ гараар «индекс шинэчлэх»
+ * дархад ЯАГААД бүтэхгүй байгааг нь мэдэх ёстой. Тиймээс энэ
+ * хувилбар шалтгааныг буцаана.
+ */
+export async function embedBatchDetailed(
+  texts: string[],
+): Promise<{ vectors: number[][] } | { error: string }> {
+  const keyProblem = describeOpenAiKey();
+  if (keyProblem) return { error: keyProblem };
+
+  if (texts.length === 0) return { error: "Векторчлох текст алга." };
 
   try {
     const response = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY!.trim()}`,
       },
       body: JSON.stringify({
         model: EMBEDDING_MODEL,
@@ -66,19 +109,57 @@ export async function embedBatch(texts: string[]): Promise<number[][] | null> {
       }),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      /* OpenAI-ийн алдааг монгол тайлбартай нь хамт дамжуулна */
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = body?.error?.message ?? "";
+      } catch {
+        detail = await response.text().catch(() => "");
+      }
+
+      const hint: Record<number, string> = {
+        401: "Түлхүүр буруу эсвэл хүчингүй болсон байна.",
+        403: "Энэ түлхүүрт эрх алга.",
+        429: "Хязгаар хэтэрсэн эсвэл данс дээр мөнгө дууссан байна. platform.openai.com → Billing хэсгийг шалгана уу.",
+        404: "Загвар олдсонгүй — OPENAI_MODEL-ыг шалгана уу.",
+      };
+
+      return {
+        error:
+          `OpenAI ${response.status} алдаа. ` +
+          (hint[response.status] ?? "") +
+          (detail ? ` (${detail.slice(0, 220)})` : ""),
+      };
+    }
 
     const payload = await response.json();
     const items = payload.data;
-    if (!Array.isArray(items)) return null;
+    if (!Array.isArray(items)) {
+      return { error: "OpenAI-аас хүлээгдээгүй хариу ирлээ." };
+    }
 
     /* OpenAI дараалал хадгалдаг ч index-ээр нь эрэмбэлэх нь найдвартай */
-    return [...items]
-      .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-      .map((item) => item.embedding as number[]);
-  } catch {
-    return null;
+    return {
+      vectors: [...items]
+        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+        .map((item) => item.embedding as number[]),
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? `Сүлжээний алдаа: ${error.message}`
+          : "Тодорхойгүй алдаа.",
+    };
   }
+}
+
+/** Олон текстийг нэг дуудлагаар — үүсгэх ажилд хурдан. */
+export async function embedBatch(texts: string[]): Promise<number[][] | null> {
+  const result = await embedBatchDetailed(texts);
+  return "vectors" in result ? result.vectors : null;
 }
 
 /**

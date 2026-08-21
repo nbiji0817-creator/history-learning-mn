@@ -1,6 +1,7 @@
 import { getDbStatus } from "@/lib/repo";
 import { webSearchProvider } from "@/lib/ai/web-search";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/config";
+import { describeOpenAiKey } from "@/lib/ai/embeddings";
 
 /**
  * Орчны хувьсагчийн төлөвийг хүн уншихаар тайлбарлана.
@@ -64,7 +65,8 @@ export async function GET() {
         siteUrl: describe("NEXT_PUBLIC_SITE_URL"),
         teacherCode: describe("TEACHER_INVITE_CODE"),
         seedSecret: describe("SEED_SECRET"),
-        openAiKey: describe("OPENAI_API_KEY"),
+        /* Хоосон эсэхээс гадна ХЭЛБЭР нь зөв эсэхийг шалгана */
+        openAiKey: describeOpenAiKey() ?? "OK",
         openAiKeyLength: (process.env.OPENAI_API_KEY ?? "").trim().length,
         openAiModel: describe("OPENAI_MODEL"),
         /* Википедиа түлхүүргүй ажилладаг тул энэ нь хэзээ ч хоосон биш */

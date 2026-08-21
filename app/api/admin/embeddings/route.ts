@@ -1,6 +1,10 @@
 import { getCurrentUser } from "@/lib/auth-server";
 import { buildCorpus } from "@/lib/ai/knowledge";
-import { embedBatch, getEmbeddingStatus } from "@/lib/ai/embeddings";
+import {
+  describeOpenAiKey,
+  embedBatchDetailed,
+  getEmbeddingStatus,
+} from "@/lib/ai/embeddings";
 import { getLessons } from "@/lib/repo";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -35,7 +39,9 @@ export async function GET() {
   return Response.json({
     ...status,
     corpusSize: corpus.length,
-    openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    openAiConfigured: describeOpenAiKey() === null,
+    /* Тохиргоо буруу бол ЯГ ЮУ буруу байгааг нь панелд харуулна */
+    openAiProblem: describeOpenAiKey(),
   });
 }
 
@@ -49,14 +55,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Танд энэ эрх алга" }, { status: 403 });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return Response.json(
-      {
-        error:
-          "OPENAI_API_KEY тохируулаагүй байна. Embedding үүсгэхэд шаардлагатай.",
-      },
-      { status: 503 },
-    );
+  /*
+   * Түлхүүрийн хэлбэрийг OpenAI руу залгахаас ӨМНӨ шалгана. Дутуу
+   * буулгасан түлхүүр 401 өгдөг ч, шалтгааныг нь урьдчилж хэлэх нь
+   * хэрэглэгчид хамаагүй тустай.
+   */
+  const keyProblem = describeOpenAiKey();
+  if (keyProblem) {
+    return Response.json({ error: keyProblem }, { status: 503 });
   }
 
   let offset = 0;
@@ -81,11 +87,21 @@ export async function POST(request: Request) {
 
   /* Гарчиг + агуулгыг хамт векторчилно — гарчиг чухал дохио өгдөг */
   const texts = batch.map((doc) => `${doc.title}\n${doc.body}`);
-  const vectors = await embedBatch(texts);
+  const result = await embedBatchDetailed(texts);
 
-  if (!vectors || vectors.length !== batch.length) {
+  if ("error" in result) {
+    return Response.json({ error: result.error }, { status: 502 });
+  }
+
+  const vectors = result.vectors;
+
+  if (vectors.length !== batch.length) {
     return Response.json(
-      { error: "Embedding үүсгэхэд алдаа гарлаа. Дахин оролдоно уу." },
+      {
+        error:
+          `OpenAI ${batch.length} текстээс ${vectors.length}-ыг нь ` +
+          "буцаалаа. Дахин оролдоно уу.",
+      },
       { status: 502 },
     );
   }
