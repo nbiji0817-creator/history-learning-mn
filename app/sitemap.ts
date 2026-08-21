@@ -5,6 +5,7 @@ import { games } from "@/data/games";
 import { exams } from "@/data/exams";
 import { grades } from "@/data/grades";
 import { getSiteUrl } from "@/lib/site";
+import { libraryBooks } from "@/data/library";
 
 const siteUrl = getSiteUrl();
 
@@ -19,6 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/people",
     "/sources",
     "/dictionary",
+    "/library",
     "/games",
     "/leaderboard",
     "/exams",
@@ -30,6 +32,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: path === "" ? 1 : 0.8,
+  }));
+
+  const libraryRoutes = libraryBooks.map((book) => ({
+    url: `${siteUrl}/library/${book.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
   }));
 
   const gradeRoutes = grades.map((grade) => ({
@@ -73,6 +82,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     ...staticRoutes,
+    ...libraryRoutes,
     ...gradeRoutes,
     ...lessonRoutes,
     ...figureRoutes,

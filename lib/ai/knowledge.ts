@@ -4,6 +4,7 @@ import { historicalFigures } from "@/data/figures";
 import { historicalEvents } from "@/data/events";
 import { historicalSources } from "@/data/sources";
 import { glossaryTerms } from "@/data/glossary";
+import { libraryBooks } from "@/data/library";
 import { search, type SearchDoc, type SearchHit } from "./search";
 
 /**
@@ -160,6 +161,50 @@ export function buildCorpus(lessons: Lesson[] = localLessons): SearchDoc[] {
     });
   }
 
+  /*
+   * НОМЫН САН
+   *
+   * Сурах бичиг ба анхдагч эх сурвалжийн (Нууц товчоо, Судрын чуулган)
+   * агуулга. Эдгээр нь хичээлээс хамаагүй дэлгэрэнгүй тул сурагч
+   * «Судрын чуулганд юу гэж бичсэн бэ» гэх мэт нарийн асуултад
+   * хариулах боломж нээгдэнэ.
+   *
+   * Гарчгийг `strong`-д, номын нэрийг `medium`-д тавьсан нь санаатай:
+   * эс бөгөөс «Судрын чуулган» гэсэн үг 200 гаруй хэсэгт адилхан
+   * өндөр оноо авч, хамгийн хамааралтай нь дээшлэхгүй.
+   */
+  for (const book of libraryBooks) {
+    for (const chunk of book.chunks) {
+      const heading = chunk.sub
+        ? `${chunk.section} — ${chunk.sub}`
+        : chunk.section;
+
+      /*
+       * Эхний хэсэг нь номын ерөнхий тойм — зохиогдсон он, бүлгийн
+       * тоо, зохиогч зэрэг «номын тухай» баримт энд байдаг. Тиймээс
+       * ЗӨВХӨН энэ хэсэгт номын нэрийг strong-д тавина. Бүх хэсэгт
+       * тавивал «Судрын чуулган» гэсэн үг 144 хэсэгт адил өндөр оноо
+       * авч, хамгийн хамааралтай нь дээшлэхээ болино.
+       */
+      const isOverview = chunk.order === 1;
+
+      docs.push({
+        id: `library:${chunk.id}`,
+        kind: "library",
+        title: `${book.title}: ${heading}`,
+        body: chunk.body,
+        href: `/library/${book.slug}#${chunk.id}`,
+        strong: isOverview ? `${book.title} ${heading}` : heading,
+        medium: `${book.title} ${book.author}${
+          book.grade ? ` ${book.grade}-р анги сурах бичиг` : ""
+        }`,
+        weak: chunk.body,
+        /* Анхдагч эх сурвалж түүхийн асуултад илүү жинтэй */
+        boost: book.kind === "primary" ? 1.05 : 0.95,
+      });
+    }
+  }
+
   for (const term of glossaryTerms) {
     docs.push({
       id: `term:${term.term}`,
@@ -308,6 +353,7 @@ const KIND_LABELS: Record<SearchDoc["kind"], string> = {
   event: "Түүхэн үйл явдал",
   source: "Эх сурвалж",
   term: "Нэр томьёо",
+  library: "Ном",
 };
 
 /**

@@ -10,6 +10,7 @@ const columns = [
       { href: "/people", label: "Түүхэн хүмүүс" },
       { href: "/events", label: "Түүхэн үйл явдал" },
       { href: "/sources", label: "Эх сурвалж" },
+      { href: "/library", label: "Номын сан" },
       { href: "/dictionary", label: "Тайлбар толь" },
     ],
   },

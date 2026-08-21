@@ -185,6 +185,13 @@ export function SiteHeader() {
             >
               📜 Эх сурвалж
             </Link>
+            <Link
+              href="/library"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-fg-muted"
+            >
+              📚 Номын сан
+            </Link>
             {user ? (
               <>
                 <Link

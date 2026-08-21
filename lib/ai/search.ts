@@ -135,7 +135,7 @@ export function queryTerms(query: string): { terms: string[]; years: number[] } 
 
 export interface SearchDoc {
   id: string;
-  kind: "lesson" | "figure" | "event" | "source" | "term";
+  kind: "lesson" | "figure" | "event" | "source" | "term" | "library";
   title: string;
   /** AI-д дамжуулах бүрэн агуулга */
   body: string;
@@ -179,6 +179,27 @@ function hasPrefix(haystackWords: string[], term: string): boolean {
  *
  * Оноо = талбарын жин × таарсан үгийн тоо, дээр нь бүрэн хамрах урамшуулал.
  */
+/**
+ * Үгийн ховор байдлаар жин тогтооно (хялбаршуулсан IDF).
+ *
+ * «хан», «улс», «он» гэх мэт үг корпусын хэдэн зуун баримтад байдаг
+ * тул тэдгээрээр таарсан нь юуг ч ялгахгүй. Харин «Багдад», «Аламут»
+ * гэх ховор үг таарвал энэ нь маш хүчтэй дохио.
+ *
+ * Үржүүлэгчийг 0.6–1.4 хооронд барьсан нь санаатай: оноо нь
+ * `MIN_SCORE`-той харьцуулагддаг тул хэмжээсийг эрс өөрчилж болохгүй.
+ */
+function rarityWeight(documentFrequency: number, total: number): number {
+  if (documentFrequency === 0 || total === 0) return 1;
+
+  const ratio = documentFrequency / total;
+
+  if (ratio > 0.25) return 0.6; // корпусын дөрөвний нэгээс дээшид байна
+  if (ratio > 0.1) return 0.85;
+  if (ratio < 0.01) return 1.4; // зуутын нэгээс цөөнд байгаа онцлох үг
+  return 1;
+}
+
 export function search(
   query: string,
   docs: SearchDoc[],
@@ -187,38 +208,79 @@ export function search(
   const { terms, years } = queryTerms(query);
   if (terms.length === 0) return [];
 
-  const hits: SearchHit[] = [];
+  /*
+   * НЭГДҮГЭЭР ДАМЖЛАГА — таарцыг цуглуулж, үг тус бүр хэдэн баримтад
+   * байгааг тоолно. Токенчлолыг нэг л удаа хийхийн тулд үр дүнг
+   * түр хадгална.
+   */
+  interface Partial {
+    doc: SearchDoc;
+    /** Үг тус бүрийн талбарын жин: 6 / 3 / 1 / 0 */
+    weights: number[];
+    /** Нэр, гарчиг, шошгонд таарсан эсэх */
+    topical: boolean[];
+    yearHit: boolean;
+  }
+
+  const partials: Partial[] = [];
+  const documentFrequency = new Array<number>(terms.length).fill(0);
 
   for (const doc of docs) {
     const strongWords = words(doc.strong).map(stem);
     const mediumWords = words(doc.medium).map(stem);
     const weakWords = words(doc.weak).map(stem);
 
+    const weights = new Array<number>(terms.length).fill(0);
+    const topical = new Array<boolean>(terms.length).fill(false);
+    let any = false;
+
+    for (let i = 0; i < terms.length; i += 1) {
+      const term = terms[i];
+
+      if (hasPrefix(strongWords, term)) {
+        weights[i] = 6;
+        topical[i] = true;
+      } else if (hasPrefix(mediumWords, term)) {
+        weights[i] = 3;
+        topical[i] = true;
+      } else if (hasPrefix(weakWords, term)) {
+        weights[i] = 1;
+      }
+
+      if (weights[i] > 0) {
+        documentFrequency[i] += 1;
+        any = true;
+      }
+    }
+
+    const yearHit =
+      doc.year !== undefined && years.includes(doc.year);
+
+    if (!any && !yearHit) continue;
+    partials.push({ doc, weights, topical, yearHit });
+  }
+
+  /* ХОЁРДУГААР ДАМЖЛАГА — ховор үгэнд илүү жин өгч оноог бодно */
+  const rarity = documentFrequency.map((count) =>
+    rarityWeight(count, docs.length),
+  );
+
+  const hits: SearchHit[] = [];
+
+  for (const partial of partials) {
     let score = 0;
     let matched = 0;
     let topicalMatches = 0;
 
-    for (const term of terms) {
-      let termScore = 0;
-
-      if (hasPrefix(strongWords, term)) {
-        termScore += 6;
-        topicalMatches += 1;
-      } else if (hasPrefix(mediumWords, term)) {
-        termScore += 3;
-        topicalMatches += 1;
-      } else if (hasPrefix(weakWords, term)) {
-        termScore += 1;
-      }
-
-      if (termScore > 0) {
-        matched += 1;
-        score += termScore;
-      }
+    for (let i = 0; i < terms.length; i += 1) {
+      if (partial.weights[i] === 0) continue;
+      score += partial.weights[i] * rarity[i];
+      matched += 1;
+      if (partial.topical[i]) topicalMatches += 1;
     }
 
     /* Он таарвал маш хүчтэй дохио — «1206» гэвэл тэр оны үйл явдал */
-    if (doc.year !== undefined && years.includes(doc.year)) {
+    if (partial.yearHit) {
       score += 15;
       matched += 1;
       topicalMatches += 1;
@@ -232,9 +294,9 @@ export function search(
      */
     const coverage = matched / terms.length;
     score *= 0.4 + coverage;
-    score *= doc.boost ?? 1;
+    score *= partial.doc.boost ?? 1;
 
-    hits.push({ doc, score, coverage, topicalMatches });
+    hits.push({ doc: partial.doc, score, coverage, topicalMatches });
   }
 
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);

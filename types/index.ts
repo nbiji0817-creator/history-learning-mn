@@ -395,6 +395,48 @@ export interface Feedback {
   resolved: boolean;
 }
 
+/* ─────────────────────────  Номын сан  ───────────────────────── */
+
+/**
+ * Номын нэг хэсэг — хайлтын нэгж.
+ *
+ * Бүтэн бүлэг биш, 800–2600 тэмдэгтийн хэмжээтэй хэсэг. Ингэснээр
+ * AI асуултад хамааралтай хэсгийг нь оновчтой олно.
+ */
+export interface LibraryChunk {
+  id: string;
+  order: number;
+  /** Бүлэг / хэсгийн гарчиг */
+  section: string;
+  /** Дэд гарчиг (байвал) */
+  sub?: string;
+  /** Эх номын хуудасны муж (ж: "22-44") */
+  pages?: string;
+  body: string;
+}
+
+/**
+ * Номын сангийн нэгж.
+ *
+ * ⚠️ `chunks` нь номын ЭХ БИЧВЭР БИШ — бүх хуудсыг уншиж гаргасан
+ * судалгааны тэмдэглэл (хураангуй). UI дээр үүнийг ил тэмдэглэнэ.
+ */
+export interface LibraryBook {
+  slug: string;
+  title: string;
+  author: string;
+  /** textbook — сурах бичиг, primary — анхдагч эх сурвалж */
+  kind: "textbook" | "primary";
+  grade?: GradeNumber;
+  /** Зохиогдсон он (анхдагч эх сурвалжид) */
+  year?: string;
+  icon: string;
+  /** Эх номын хуудасны тоо */
+  pages: number;
+  description: string;
+  chunks: LibraryChunk[];
+}
+
 /* ─────────────────────────  AI  ───────────────────────── */
 
 export type AiMode =
