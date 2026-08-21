@@ -7,12 +7,13 @@ import { libraryBooks, libraryChunkCount } from "@/data/library";
 export const metadata: Metadata = {
   title: "Номын сан",
   description:
-    "Түүхийн сурах бичиг ба анхдагч эх сурвалж — Монголын нууц товчоо, Рашид ад-Дины Судрын чуулган. AI багш эдгээрээс хариулна.",
+    "Түүхийн сурах бичиг, Монголын нууц товчоо, Рашид ад-Дины Судрын чуулган, ШУА-ийн «Монгол улсын түүх» таван боть. AI багш эдгээрээс хариулна.",
 };
 
 export default function LibraryPage() {
   const textbooks = libraryBooks.filter((book) => book.kind === "textbook");
   const primary = libraryBooks.filter((book) => book.kind === "primary");
+  const academic = libraryBooks.filter((book) => book.kind === "academic");
 
   const totalPages = libraryBooks.reduce((sum, book) => sum + book.pages, 0);
 
@@ -22,7 +23,7 @@ export default function LibraryPage() {
         eyebrow="Эх сурвалж"
         title="Номын сан"
         icon="📚"
-        description="Сурах бичиг ба анхдагч эх сурвалжийн агуулга. AI багш асуултад эндээс хайж, номын бүлгийг нь заана."
+        description="Сурах бичиг, анхдагч эх сурвалж, эрдэм шинжилгээний бүтээлийн агуулга. AI багш асуултад эндээс хайж, номын бүлгийг нь заана."
       />
 
       <Section title="">
@@ -61,6 +62,36 @@ export default function LibraryPage() {
       >
         <div className="grid gap-5 md:grid-cols-3">
           {primary.map((book) => (
+            <Link
+              key={book.slug}
+              href={`/library/${book.slug}`}
+              className="rounded-2xl border border-line p-5 transition hover:border-gold/60 hover:bg-muted/40"
+            >
+              <span className="text-3xl" aria-hidden>
+                {book.icon}
+              </span>
+              <h3 className="mt-3 font-black leading-tight">{book.title}</h3>
+              <p className="mt-1 text-xs font-semibold text-gold">
+                {book.author}
+                {book.year ? ` · ${book.year}` : ""}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-fg-muted">
+                {book.description}
+              </p>
+              <p className="mt-4 text-xs text-fg-muted">
+                {book.pages} хуудас · {book.chunks.length} хэсэг
+              </p>
+            </Link>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Эрдэм шинжилгээний бүтээл"
+        description="Мэргэжлийн түүхчдийн олон жилийн судалгаа — гүнзгий, эх сурвалжид тулгуурласан"
+      >
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {academic.map((book) => (
             <Link
               key={book.slug}
               href={`/library/${book.slug}`}

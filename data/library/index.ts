@@ -7,6 +7,11 @@ import { nuutsTovchoo } from "./nuuts-tovchoo";
 import { sudrynChuulgan1 } from "./sudryn-chuulgan-1";
 import { sudrynChuulgan2 } from "./sudryn-chuulgan-2";
 import { sudrynChuulgan3 } from "./sudryn-chuulgan-3";
+import { mongolUlsynTuuh1 } from "./mongol-ulsyn-tuuh-1";
+import { mongolUlsynTuuh2 } from "./mongol-ulsyn-tuuh-2";
+import { mongolUlsynTuuh3 } from "./mongol-ulsyn-tuuh-3";
+import { mongolUlsynTuuh4 } from "./mongol-ulsyn-tuuh-4";
+import { mongolUlsynTuuh5 } from "./mongol-ulsyn-tuuh-5";
 
 /**
  * НОМЫН САН
@@ -25,6 +30,11 @@ export const libraryBooks: LibraryBook[] = [
   sudrynChuulgan1,
   sudrynChuulgan2,
   sudrynChuulgan3,
+  mongolUlsynTuuh1,
+  mongolUlsynTuuh2,
+  mongolUlsynTuuh3,
+  mongolUlsynTuuh4,
+  mongolUlsynTuuh5,
 ];
 
 export const libraryBookMap = new Map(

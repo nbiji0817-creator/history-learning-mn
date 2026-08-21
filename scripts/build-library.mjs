@@ -11,6 +11,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const SRC = "D:/хичээл ai/түүхийн номнууд/";
+/** Номын багц бүр өөрийн хавтастай — `dir` заагаагүй бол SRC-ийг авна. */
+const SRC_ACADEMIC = "D:/түүх/Түүх ном/";
 const OUT = "C:/Users/sainshand/OneDrive/Desktop/Түүхийн систем/history-learning-mn/data/library/";
 
 const MAX = 2600;
@@ -114,6 +116,75 @@ const BOOKS = [
     description:
       "Хүлэгийн улс (Ил хаант улс) — Хулагугаас Газан хаан хүртэл.",
     files: ["судрын чуулган 3 - тэмдэглэл.md"],
+  },
+  /* ── ШУА-ийн «Монгол улсын түүх» таван боть (2003) ── */
+  {
+    slug: "mongol-ulsyn-tuuh-1",
+    title: "Монгол улсын түүх — I боть",
+    author: "ШУА-ийн Түүхийн хүрээлэн (ред. Д. Цэвээндорж)",
+    kind: "academic",
+    icon: "📘",
+    pages: 447,
+    year: "2003",
+    dir: SRC_ACADEMIC,
+    description:
+      "Нэн эртнээс XII зууны дунд үе — чулуун зэвсэг, Хүннү, Сяньби, Жужан, Түрэг, Уйгур, Хятан.",
+    files: [
+      "Монгол улсын түүх 1 боть - тэмдэглэл (а).md",
+      "Монгол улсын түүх 1 боть - тэмдэглэл (б).md",
+    ],
+  },
+  {
+    slug: "mongol-ulsyn-tuuh-2",
+    title: "Монгол улсын түүх — II боть",
+    author: "ШУА-ийн Түүхийн хүрээлэн",
+    kind: "academic",
+    icon: "📘",
+    pages: 415,
+    year: "2003",
+    dir: SRC_ACADEMIC,
+    description:
+      "XIII–XIV зуун — монголчуудын гарал, Их Монгол Улс, Юан гүрэн, гүрний задрал.",
+    files: ["Монгол улсын түүх 2 боть - тэмдэглэл.md"],
+  },
+  {
+    slug: "mongol-ulsyn-tuuh-3",
+    title: "Монгол улсын түүх — III боть",
+    author: "ШУА-ийн Түүхийн хүрээлэн",
+    kind: "academic",
+    icon: "📘",
+    pages: 226,
+    year: "2003",
+    dir: SRC_ACADEMIC,
+    description:
+      "XIV зууны сүүл – XVII зууны эхэн — төв нутагтаа шилжсэн нь, Даян хаан, дахин бутрал.",
+    files: ["Монгол улсын түүх 3 боть - тэмдэглэл.md"],
+  },
+  {
+    slug: "mongol-ulsyn-tuuh-4",
+    title: "Монгол улсын түүх — IV боть",
+    author: "ШУА-ийн Түүхийн хүрээлэн (удирдагч А. Очир)",
+    kind: "academic",
+    icon: "📘",
+    pages: 424,
+    year: "2003",
+    dir: SRC_ACADEMIC,
+    description:
+      "XVII зуун – XX зууны эхэн — Лигдэн хаан, Зүүнгар, Манжийн эрхшээл, ардын хөдөлгөөн.",
+    files: ["Монгол улсын түүх 4 боть - тэмдэглэл.md"],
+  },
+  {
+    slug: "mongol-ulsyn-tuuh-5",
+    title: "Монгол улсын түүх — V боть",
+    author: "ШУА-ийн Түүхийн хүрээлэн",
+    kind: "academic",
+    icon: "📘",
+    pages: 403,
+    year: "2003",
+    dir: SRC_ACADEMIC,
+    description:
+      "XX зуун — 1911, 1921 оны хувьсгал, хэлмэгдүүлэлт, социализм, 1990 оны ардчилал.",
+    files: ["Монгол улсын түүх 5 боть - тэмдэглэл.md"],
   },
 ];
 
@@ -325,7 +396,7 @@ const summary = [];
 for (const book of BOOKS) {
   const chunks = [];
   for (const file of book.files) {
-    chunks.push(...chunkFile(readFileSync(SRC + file, "utf8")));
+    chunks.push(...chunkFile(readFileSync((book.dir ?? SRC) + file, "utf8")));
   }
 
   writeFileSync(OUT + book.slug + ".ts", emit(book, chunks), "utf8");

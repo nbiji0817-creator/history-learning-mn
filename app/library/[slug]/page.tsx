@@ -49,7 +49,13 @@ export default async function LibraryBookPage({
   return (
     <>
       <PageHeader
-        eyebrow={book.kind === "primary" ? "Анхдагч эх сурвалж" : "Сурах бичиг"}
+        eyebrow={
+          book.kind === "primary"
+            ? "Анхдагч эх сурвалж"
+            : book.kind === "academic"
+              ? "Эрдэм шинжилгээний бүтээл"
+              : "Сурах бичиг"
+        }
         title={book.title}
         icon={book.icon}
         description={book.description}

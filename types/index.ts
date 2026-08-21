@@ -425,8 +425,12 @@ export interface LibraryBook {
   slug: string;
   title: string;
   author: string;
-  /** textbook — сурах бичиг, primary — анхдагч эх сурвалж */
-  kind: "textbook" | "primary";
+  /**
+   * textbook — ЕБС-ийн сурах бичиг
+   * primary  — анхдагч эх сурвалж (Нууц товчоо, Судрын чуулган)
+   * academic — эрдэм шинжилгээний бүтээл (ШУА-ийн олон боть түүх)
+   */
+  kind: "textbook" | "primary" | "academic";
   grade?: GradeNumber;
   /** Зохиогдсон он (анхдагч эх сурвалжид) */
   year?: string;
