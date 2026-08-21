@@ -145,9 +145,43 @@ function splitPages(heading) {
   return { title: heading, pages: null };
 }
 
+/**
+ * Зөвхөн надад (уншиж байсан AI-д) хандсан хэсэг мөн эсэх.
+ *
+ * Тэмдэглэлд «Ашиглах заавар» гэх мэт хэсэг байдаг — «эх PDF-ийг
+ * D:\... замаас 20 хуудсаар дахин уншиж болно» гэсэн ажлын санамж.
+ * Энэ нь сурагчид хэрэггүй төдийгүй, өөр хүний компьютерийн зам
+ * хариултад гарч ирвэл эвгүй. Индексэд огт оруулахгүй.
+ */
+function isInternalNote(heading, body) {
+  if (/^(ашиглах заавар|заавар|тэмдэглэлийн тухай)/i.test(heading.trim())) {
+    return true;
+  }
+  /* Биет нь голчлон локал зам, хэрэглэх зөвлөмж бол алгасна */
+  return /[A-Za-z]:[\\/]|Read tool|pages параметр/i.test(body) && body.length < 900;
+}
+
+/**
+ * Локал файлын замыг бичвэрээс арилгана.
+ *
+ * Зам дотор зай байдаг («D:\хичээл ai\...») тул үгээр таслах
+ * загвар ажиллахгүй — өргөтгөл дээр нь тулгуурлан залхуу таарцаар
+ * барина. Дискний үсэггүй ганц файлын нэрээс зөвхөн өргөтгөлийг
+ * хасна: «судрын чуулган 2.pdf» → «судрын чуулган 2».
+ */
+function stripLocalPaths(text) {
+  return text
+    /* Дискний үсэгтэй бүтэн зам — бүхэлд нь солино */
+    .replace(/`?[A-Za-z]:[\\/][^\n`)]*?\.(?:pdf|md|docx?)`?/gi, "эх ном")
+    /* Ганц файлын нэр — зөвхөн өргөтгөлийг хасна */
+    .replace(/([\p{L}\d][\p{L}\d \-—]*?)\.(?:pdf|md|docx?)\b/giu, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 /** Markdown тэмдэглэгээг цэвэрлэж, хайлтад тохирсон энгийн текст болгоно. */
 function plain(text) {
-  return text
+  return stripLocalPaths(text)
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
@@ -198,6 +232,7 @@ function chunkFile(raw) {
 
     const body = section.replace(/^#{1,2}\s+.+$/m, "").trim();
     if (body.length < MIN) continue;
+    if (isInternalNote(heading, body)) continue;
 
     if (plain(body).length <= MAX) {
       chunks.push({ section: heading, sub: null, pages: headingPages, body: plain(body) });
