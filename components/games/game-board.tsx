@@ -14,6 +14,7 @@ import type {
 import { Button, Card } from "@/components/ui/primitives";
 import { useProgress } from "@/lib/progress";
 import { cn, formatDuration, shuffle } from "@/lib/utils";
+import { figureClues } from "@/data/figure-clues";
 import { BattleTacticsGame } from "./battle-tactics";
 import { MapChallengeGame } from "./map-challenge";
 import { WordSearchGame } from "./word-search";
@@ -294,6 +295,8 @@ function WhoIsItGame({
 }) {
   const { recordGameScore } = useProgress();
   const ROUNDS = 6;
+  /* Сэжүүр бүрд нэг оноо буурна: 1 сэжүүрээр таавал 4, 4-өөр таавал 1 */
+  const MAX_PER_ROUND = 4;
 
   const [pool] = useState(() => shuffle(figures).slice(0, ROUNDS));
   const [round, setRound] = useState(0);
@@ -304,12 +307,25 @@ function WhoIsItGame({
 
   const target = pool[round];
 
+  /*
+   * Буруу хариултыг ИЖИЛ ЭРИН ҮЕЭС сонгоно. Санамсаргүй сонговол
+   * «Хаммурапи, Чингис хаан, Сүхбаатар» гэсэн сонголт гарч, эхний
+   * сэжүүр л хангалттай болчихно. Ижил үеэс сонгоход сурагч
+   * сэжүүрийг үнэхээр уншиж, ялгаж таних шаардлагатай болно.
+   */
   const options = useMemo(() => {
     if (!target) return [];
-    const others = shuffle(figures.filter((item) => item.slug !== target.slug)).slice(
-      0,
-      3,
+
+    const sameEra = figures.filter(
+      (item) => item.slug !== target.slug && item.era === target.era,
     );
+    const rest = figures.filter(
+      (item) => item.slug !== target.slug && item.era !== target.era,
+    );
+
+    /* Ижил үеэс хүрэлцэхгүй бол бусдаар нөхнө */
+    const others = [...shuffle(sameEra), ...shuffle(rest)].slice(0, 3);
+
     return shuffle([target, ...others]);
   }, [target, figures]);
 
@@ -317,25 +333,34 @@ function WhoIsItGame({
     return (
       <GameResult
         score={score}
-        total={ROUNDS}
+        /* Дээд оноо = шат бүрд эхний сэжүүрээр таасан тохиолдол */
+        total={ROUNDS * MAX_PER_ROUND}
         detail="Сэжүүр цөөн ашиглах тусам оноо өндөр."
         onRestart={() => window.location.reload()}
       />
     );
   }
 
-  const clues = [
-    `Эрин үе: ${target.era === "ancient" ? "Эрт үе" : target.era === "medieval" ? "Дундад үе" : target.era === "modern" ? "Шинэ үе" : "Орчин үе"}`,
+  /*
+   * Гараар бичсэн таавар байвал түүнийг ашиглана. Байхгүй бол
+   * өгөгдлөөс үүсгэсэн нөөц хувилбар руу унана — шинэ хүн нэмэхэд
+   * тоглоом эвдрэхгүй.
+   *
+   * Нөөц хувилбарт `title`-ыг ОРУУЛАХГҮЙ: «Их Монгол улсыг
+   * үндэслэгч» гэх мэт албан тушаал нь хариултыг шууд хэлчихдэг.
+   */
+  const clues = figureClues[target.slug] ?? [
     `Амьдарсан хугацаа: ${target.born} – ${target.died}`,
-    `Албан тушаал: ${target.title}`,
+    `Холбоотой сэдэв: ${target.tags.slice(0, 2).join(", ")}`,
     `Гол гавьяа: ${target.achievements[0]}`,
+    target.summary,
   ];
 
   const pick = (slug: string) => {
     if (answered) return;
     setAnswered(slug);
     if (slug === target.slug) {
-      setScore((value) => value + Math.max(1, 4 - hints + 1));
+      setScore((value) => value + Math.max(1, MAX_PER_ROUND - hints + 1));
     }
   };
 
@@ -360,11 +385,28 @@ function WhoIsItGame({
       </div>
 
       <Card>
-        <p className="text-sm font-bold text-gold">Сэжүүр</p>
-        <ul className="mt-3 space-y-2">
-          {clues.slice(0, hints).map((clue) => (
-            <li key={clue} className="rounded-xl bg-muted/60 p-3 text-sm leading-6">
-              {clue}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-bold text-gold">
+            Сэжүүр {hints} / {clues.length}
+          </p>
+          {/* Одоо хариулбал хэдэн оноо авахыг ил харуулна */}
+          {!answered ? (
+            <span className="rounded-full bg-gold/15 px-3 py-1 text-xs font-bold text-gold">
+              Одоо таавал +{Math.max(1, MAX_PER_ROUND - hints + 1)} оноо
+            </span>
+          ) : null}
+        </div>
+
+        <ul className="mt-4 space-y-2">
+          {clues.slice(0, hints).map((clue, position) => (
+            <li
+              key={clue}
+              className="flex gap-3 rounded-xl bg-muted/60 p-3 text-sm leading-6"
+            >
+              <span className="shrink-0 font-black text-fg-muted">
+                {position + 1}.
+              </span>
+              <span>{clue}</span>
             </li>
           ))}
         </ul>
@@ -375,7 +417,8 @@ function WhoIsItGame({
             onClick={() => setHints((value) => value + 1)}
             className="mt-3 text-sm font-semibold text-gold hover:underline"
           >
-            + Дараагийн сэжүүр (оноо буурна)
+            + Дараагийн сэжүүр (оноо {Math.max(1, MAX_PER_ROUND - hints)} болж
+            буурна)
           </button>
         ) : null}
 
