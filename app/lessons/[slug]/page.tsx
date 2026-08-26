@@ -5,7 +5,15 @@ import { Container, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/primitives";
 import { LessonSections } from "@/components/lessons/lesson-sections";
 import { LessonActions } from "@/components/lessons/lesson-actions";
-import { getGrade, getLessonBySlug, getLessonNeighbours } from "@/lib/repo";
+import {
+  getEvents,
+  getGrade,
+  getLessonBySlug,
+  getLessonNeighbours,
+  getQuestions,
+} from "@/lib/repo";
+import { LessonLab } from "@/components/lessons/lesson-lab";
+import { buildLessonLabData } from "@/lib/lessons/lab-data";
 import { lessons } from "@/data/lessons";
 import { difficultyLabels, difficultyStyles } from "@/lib/utils";
 
@@ -35,10 +43,15 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[slug]"
   const lesson = await getLessonBySlug(slug);
   if (!lesson || !lesson.published) notFound();
 
-  const [grade, neighbours] = await Promise.all([
+  const [grade, neighbours, events, questions] = await Promise.all([
     getGrade(lesson.grade),
     getLessonNeighbours(lesson),
+    getEvents(),
+    getQuestions(),
   ]);
+
+  /* Интерактив дасгалыг хичээлийн ӨӨРИЙНХ НЬ өгөгдлөөс үүсгэнэ */
+  const labData = buildLessonLabData(lesson, events, questions);
 
   return (
     <>
@@ -78,6 +91,13 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[slug]"
             <div className="mt-10">
               <LessonSections sections={lesson.sections} />
             </div>
+
+            {/* Интерактив дасгал — өгөгдөл хүрэлцэхгүй бол огт харагдахгүй */}
+            {labData.hasAnything ? (
+              <div className="mt-10">
+                <LessonLab lessonSlug={lesson.slug} data={labData} />
+              </div>
+            ) : null}
 
             {/* Дүгнэлт */}
             <Card className="mt-12 border-l-4 border-l-gold">
