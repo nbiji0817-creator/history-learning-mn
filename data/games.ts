@@ -81,7 +81,7 @@ export const games: Game[] = [
     icon: "🗺️",
     grades: [7, 8, 9, 10],
     difficulty: "medium",
-    playable: false,
+    playable: true,
     xp: 35,
   },
   {
@@ -92,7 +92,7 @@ export const games: Game[] = [
     icon: "🔤",
     grades: [6, 7, 8],
     difficulty: "easy",
-    playable: false,
+    playable: true,
     xp: 15,
   },
 ];

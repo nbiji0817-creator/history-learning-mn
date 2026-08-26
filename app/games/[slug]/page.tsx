@@ -3,8 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container, PageHeader } from "@/components/ui/page";
 import { GameBoard } from "@/components/games/game-board";
-import { getEvents, getFigures, getGame, getQuestions } from "@/lib/repo";
+import {
+  getEvents,
+  getFigures,
+  getGame,
+  getGlossary,
+  getQuestions,
+} from "@/lib/repo";
 import { games } from "@/data/games";
+import { historicalPlaces } from "@/data/places";
 import { difficultyLabels } from "@/lib/utils";
 
 export function generateStaticParams() {
@@ -26,10 +33,11 @@ export default async function GamePage({ params }: PageProps<"/games/[slug]">) {
   const game = await getGame(slug);
   if (!game) notFound();
 
-  const [events, figures, questions] = await Promise.all([
+  const [events, figures, questions, terms] = await Promise.all([
     getEvents(),
     getFigures(),
     getQuestions(),
+    getGlossary(),
   ]);
 
   return (
@@ -52,7 +60,16 @@ export default async function GamePage({ params }: PageProps<"/games/[slug]">) {
       <Container className="py-10">
         <div className="mx-auto max-w-3xl">
           {game.playable ? (
-            <GameBoard game={game} data={{ events, figures, questions }} />
+            <GameBoard
+              game={game}
+              data={{
+                events,
+                figures,
+                questions,
+                places: historicalPlaces,
+                terms,
+              }}
+            />
           ) : (
             <div className="rounded-2xl border border-dashed border-line p-12 text-center">
               <p className="text-5xl" aria-hidden>

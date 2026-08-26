@@ -100,6 +100,26 @@ export interface MapMarker {
   kind: "capital" | "battle" | "city" | "site";
 }
 
+/**
+ * Түүхэн газар — «Газрын зураг таах» тоглоомд.
+ *
+ * Байршлыг зурган дээрх хувиар биш, ЖИНХЭНЭ өргөрөг/уртрагаар
+ * хадгална. Ингэснээр сурагчийн таамгаас хэдэн километр зөрснийг
+ * бодож, шударга оноо өгөх боломжтой.
+ */
+export interface HistoricalPlace {
+  id: string;
+  name: string;
+  /** Өргөрөг (хойш эерэг) */
+  lat: number;
+  /** Уртраг (зүүн тийш эерэг) */
+  lon: number;
+  kind: "capital" | "battle" | "city" | "site";
+  year: string;
+  /** Сурагчид чиглүүлэг өгөх сэжүүр — байршлыг шууд хэлэхгүй */
+  hint: string;
+}
+
 export interface MapView {
   title: string;
   caption?: string;

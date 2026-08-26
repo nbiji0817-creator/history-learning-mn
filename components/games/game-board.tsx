@@ -2,15 +2,26 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Game, HistoricalEvent, HistoricalFigure, Question } from "@/types";
+import type {
+  Game,
+  GlossaryTerm,
+  HistoricalEvent,
+  HistoricalFigure,
+  HistoricalPlace,
+  Question,
+} from "@/types";
 import { Button, Card } from "@/components/ui/primitives";
 import { useProgress } from "@/lib/progress";
 import { cn, formatDuration, shuffle } from "@/lib/utils";
+import { MapChallengeGame } from "./map-challenge";
+import { WordSearchGame } from "./word-search";
 
 export interface GameData {
   events: HistoricalEvent[];
   figures: HistoricalFigure[];
   questions: Question[];
+  places: HistoricalPlace[];
+  terms: GlossaryTerm[];
 }
 
 export function GameBoard({ game, data }: { game: Game; data: GameData }) {
@@ -50,6 +61,10 @@ export function GameBoard({ game, data }: { game: Game; data: GameData }) {
       return <QuizRushGame game={game} questions={data.questions} />;
     case "true_false":
       return <TrueFalseGame game={game} questions={data.questions} />;
+    case "map_challenge":
+      return <MapChallengeGame game={game} places={data.places} />;
+    case "word_search":
+      return <WordSearchGame game={game} terms={data.terms} />;
     default:
       return (
         <Card>
