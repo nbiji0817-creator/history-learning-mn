@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader, Section } from "@/components/ui/page";
 import { Card, CardLink } from "@/components/ui/primitives";
 import { getGames, getSimulations } from "@/lib/repo";
+import { liveSimulations } from "@/data/live-sims";
 import { difficultyLabels, difficultyStyles } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -72,7 +73,34 @@ export default async function GamesPage() {
       </Section>
 
       <Section
-        title="Түүхийн симуляци"
+        title="Хөдөлгөөнт симуляц"
+        description="Газрын зураг, маршрут, улирал — бүгд нүдэн дээр өрнөнө."
+      >
+        <div className="grid gap-5 md:grid-cols-3">
+          {liveSimulations.map((simulation) => (
+            <CardLink
+              key={simulation.slug}
+              href={`/games/live/${simulation.slug}`}
+            >
+              <div className="text-5xl" aria-hidden>
+                {simulation.icon}
+              </div>
+              <h2 className="mt-5 text-lg font-black group-hover:text-gold">
+                {simulation.title}
+              </h2>
+              <p className="mt-1 text-sm font-medium text-gold">
+                {simulation.subtitle}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-fg-muted">
+                {simulation.intro}
+              </p>
+            </CardLink>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Шийдвэрийн симуляци"
         description="Түүхэн шийдвэр гаргаж, үр дагаврыг нь өөрөө мэдэр."
         className="bg-muted/40"
       >

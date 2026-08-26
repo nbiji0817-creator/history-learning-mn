@@ -362,6 +362,30 @@ export interface Simulation {
   endings: { min: number; title: string; body: string }[];
 }
 
+/* ─────────────────────────  Хөдөлгөөнт симуляц  ───────────────────────── */
+
+/**
+ * Хөдөлгөөнт симуляцийн төрөл.
+ *
+ * Тус бүр өөрийн бүрэлдэхүүнтэй — бүтэц нь огт өөр тул нэг ерөнхий
+ * загварт шахах гэж оролдоогүй.
+ *   map_timeline — газрын зураг дээр он цагаар өрнөнө
+ *   journey      — маршрутаар аялж, зогсоол бүрд шийдвэр гаргана
+ *   seasons      — улирлын эргэлт, нөөцийн тэнцвэр
+ */
+export type LiveSimKind = "map_timeline" | "journey" | "seasons";
+
+export interface LiveSimulation {
+  slug: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  kind: LiveSimKind;
+  intro: string;
+  /** Автоматаар өрнөх симуляцийн үргэлжлэх хугацаа (0 бол хэрэглэгч удирдана) */
+  durationSeconds: number;
+}
+
 /* ─────────────────────────  Тулалдааны тактик  ───────────────────────── */
 
 /** Монголын цэргийн жинхэнэ дөрвөн тактик */
