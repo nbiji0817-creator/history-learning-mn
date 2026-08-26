@@ -313,11 +313,11 @@ export type GameKind =
   | "timeline_order"
   | "who_is_it"
   | "match_pairs"
-  | "memory"
   | "quiz_rush"
   | "true_false"
   | "map_challenge"
-  | "word_search";
+  | "word_search"
+  | "battle_tactics";
 
 export interface Game {
   slug: string;
@@ -360,6 +360,39 @@ export interface Simulation {
   intro: string;
   scenes: SimulationScene[];
   endings: { min: number; title: string; body: string }[];
+}
+
+/* ─────────────────────────  Тулалдааны тактик  ───────────────────────── */
+
+/** Монголын цэргийн жинхэнэ дөрвөн тактик */
+export type BattleTactic =
+  | "feigned_retreat"
+  | "envelopment"
+  | "arrow_storm"
+  | "frontal";
+
+/**
+ * Хөдөлгөөнт тулалдааны нэг хувилбар.
+ *
+ * `playingAs` нь сурагч аль талыг удирдахыг заана. Айн Жалутад
+ * монголын ЭСРЭГ талд тоглуулснаар «монголчууд үргэлж ялдаггүй,
+ * бас тэдний аргыг эсрэг нь ашиглаж болно» гэдгийг үзүүлнэ.
+ */
+export interface BattleScenario {
+  slug: string;
+  title: string;
+  year: string;
+  place: string;
+  playingAs: "mongol" | "enemy";
+  /** Сурагчид тавигдах нөхцөл байдал */
+  situation: string;
+  correct: BattleTactic;
+  correctTitle: string;
+  /** Зөв сонгосон үед — түүхэнд юу болсон бэ */
+  correctExplanation: string;
+  /** Буруу сонгосон үед — яагаад болохгүй, юу болох ёстой байсан */
+  wrongExplanation: string;
+  source: string;
 }
 
 /* ─────────────────────────  Ахиц / Gamification  ───────────────────────── */

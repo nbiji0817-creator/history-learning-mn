@@ -12,6 +12,7 @@ import {
 } from "@/lib/repo";
 import { games } from "@/data/games";
 import { historicalPlaces } from "@/data/places";
+import { battleScenarios } from "@/data/battles";
 import { difficultyLabels } from "@/lib/utils";
 
 export function generateStaticParams() {
@@ -68,6 +69,7 @@ export default async function GamePage({ params }: PageProps<"/games/[slug]">) {
                 questions,
                 places: historicalPlaces,
                 terms,
+                battles: battleScenarios,
               }}
             />
           ) : (

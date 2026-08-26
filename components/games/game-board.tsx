@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  BattleScenario,
   Game,
   GlossaryTerm,
   HistoricalEvent,
@@ -13,6 +14,7 @@ import type {
 import { Button, Card } from "@/components/ui/primitives";
 import { useProgress } from "@/lib/progress";
 import { cn, formatDuration, shuffle } from "@/lib/utils";
+import { BattleTacticsGame } from "./battle-tactics";
 import { MapChallengeGame } from "./map-challenge";
 import { WordSearchGame } from "./word-search";
 
@@ -22,6 +24,7 @@ export interface GameData {
   questions: Question[];
   places: HistoricalPlace[];
   terms: GlossaryTerm[];
+  battles: BattleScenario[];
 }
 
 export function GameBoard({ game, data }: { game: Game; data: GameData }) {
@@ -55,8 +58,6 @@ export function GameBoard({ game, data }: { game: Game; data: GameData }) {
       return <WhoIsItGame game={game} figures={data.figures} />;
     case "match_pairs":
       return <MatchPairsGame game={game} events={data.events} />;
-    case "memory":
-      return <MemoryGame game={game} figures={data.figures} />;
     case "quiz_rush":
       return <QuizRushGame game={game} questions={data.questions} />;
     case "true_false":
@@ -65,6 +66,8 @@ export function GameBoard({ game, data }: { game: Game; data: GameData }) {
       return <MapChallengeGame game={game} places={data.places} />;
     case "word_search":
       return <WordSearchGame game={game} terms={data.terms} />;
+    case "battle_tactics":
+      return <BattleTacticsGame game={game} scenarios={data.battles} />;
     default:
       return (
         <Card>
@@ -536,131 +539,6 @@ function MatchPairsGame({
           >
             Шалгах ({Object.keys(picked).length}/{SIZE})
           </Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-/* ─────────────────────────  4. Санах ойн тоглоом  ───────────────────────── */
-
-interface MemoryCard {
-  key: string;
-  pairId: string;
-  face: string;
-  label: string;
-}
-
-function MemoryGame({
-  game,
-  figures,
-}: {
-  game: Game;
-  figures: HistoricalFigure[];
-}) {
-  const { recordGameScore } = useProgress();
-  const SIZE = 6;
-
-  const [cards] = useState<MemoryCard[]>(() => {
-    const picked = shuffle(figures).slice(0, SIZE);
-    const deck = picked.flatMap((figure) => [
-      {
-        key: `${figure.slug}-a`,
-        pairId: figure.slug,
-        face: figure.portrait,
-        label: figure.portrait,
-      },
-      {
-        key: `${figure.slug}-b`,
-        pairId: figure.slug,
-        face: figure.portrait,
-        label: figure.name,
-      },
-    ]);
-    return shuffle(deck);
-  });
-
-  const [flipped, setFlipped] = useState<string[]>([]);
-  const [matched, setMatched] = useState<string[]>([]);
-  const [moves, setMoves] = useState(0);
-
-  useEffect(() => {
-    if (flipped.length !== 2) return;
-    const [first, second] = flipped.map((key) =>
-      cards.find((card) => card.key === key),
-    );
-    const timer = window.setTimeout(() => {
-      if (first && second && first.pairId === second.pairId) {
-        setMatched((value) => [...value, first.pairId]);
-      }
-      setFlipped([]);
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [flipped, cards]);
-
-  const complete = matched.length === SIZE;
-
-  useEffect(() => {
-    if (complete) recordGameScore(game.slug, SIZE, game.xp);
-  }, [complete, game.slug, game.xp, recordGameScore]);
-
-  if (complete) {
-    return (
-      <GameResult
-        score={SIZE}
-        total={SIZE}
-        detail={`${moves} хөдөлгөөнөөр бүх хосыг оллоо.`}
-        onRestart={() => window.location.reload()}
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between text-sm font-semibold">
-        <span>Хөдөлгөөн: {moves}</span>
-        <span className="text-gold">
-          Олсон: {matched.length} / {SIZE}
-        </span>
-      </div>
-
-      <Card>
-        <p className="text-sm text-fg-muted">
-          Хөзрийг эргүүлж, түүхэн хүний хөрөг ба нэрийг хослуул.
-        </p>
-
-        <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {cards.map((card) => {
-            const open = flipped.includes(card.key) || matched.includes(card.pairId);
-            return (
-              <button
-                key={card.key}
-                type="button"
-                onClick={() => {
-                  if (open || flipped.length === 2) return;
-                  setFlipped((value) => [...value, card.key]);
-                  if (flipped.length === 1) setMoves((value) => value + 1);
-                }}
-                className={cn(
-                  "flex aspect-square items-center justify-center rounded-xl border p-2 text-center text-sm font-semibold transition",
-                  open
-                    ? "border-gold bg-gold/15"
-                    : "border-line bg-muted hover:border-gold/50",
-                )}
-                aria-label={open ? card.label : "Хаалттай хөзөр"}
-              >
-                {open ? (
-                  <span className={card.label.length > 3 ? "text-xs" : "text-3xl"}>
-                    {card.label}
-                  </span>
-                ) : (
-                  <span className="text-2xl opacity-40" aria-hidden>
-                    ❔
-                  </span>
-                )}
-              </button>
-            );
-          })}
         </div>
       </Card>
     </div>
