@@ -1,6 +1,11 @@
 import type { Simulation } from "@/types";
+import { extraSimulations } from "./simulations-extra";
 
-export const simulations: Simulation[] = [
+/**
+ * Анхны симуляц. Агуулгыг нь бүү өөрчил — нэмэлт хувилбарууд
+ * `simulations-extra.ts` дотор тусад нь байна.
+ */
+const coreSimulations: Simulation[] = [
   {
     slug: "ugudei-zovloh",
     title: "Чи Өгөөдэй хааны зөвлөх бол",
@@ -149,6 +154,11 @@ export const simulations: Simulation[] = [
       },
     ],
   },
+];
+
+export const simulations: Simulation[] = [
+  ...coreSimulations,
+  ...extraSimulations,
 ];
 
 export const simulationMap = new Map<string, Simulation>(
