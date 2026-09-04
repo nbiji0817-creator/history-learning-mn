@@ -5,7 +5,12 @@ import { historicalEvents } from "@/data/events";
 import { historicalSources } from "@/data/sources";
 import { glossaryTerms } from "@/data/glossary";
 import { libraryBooks } from "@/data/library";
-import { search, type SearchDoc, type SearchHit } from "./search";
+import {
+  relevantPassage,
+  search,
+  type SearchDoc,
+  type SearchHit,
+} from "./search";
 
 /**
  * AI-ийн МЭДЛЭГИЙН САН
@@ -392,7 +397,21 @@ export function buildFallbackAnswer(
 
   const [primary, ...rest] = result.hits;
 
-  lines.push(`**${primary.title}**`, primary.body, "");
+  /*
+   * Баримтын БҮХ биетийг хэвлэхгүй — асуултад хамаарах өгүүлбэрийг
+   * л сугалж авна. Хичээлийн бүтэн текст гарвал сурагчийн асуусан
+   * зүйл дунд нь алдагддаг.
+   */
+  const passage = relevantPassage(primary.body, query, 4);
+
+  lines.push(
+    `**${primary.title}**`,
+    passage ??
+      (primary.body.length > 600
+        ? `${primary.body.slice(0, 600)}…`
+        : primary.body),
+    "",
+  );
 
   if (!result.confident) {
     lines.push(
@@ -404,7 +423,11 @@ export function buildFallbackAnswer(
   if (rest.length > 0) {
     lines.push("**Холбогдох мэдээлэл**", "");
     for (const hit of rest.slice(0, 3)) {
-      const snippet = hit.body.length > 240 ? `${hit.body.slice(0, 240)}…` : hit.body;
+      /* Энд ч мөн адил — эхний 240 тэмдэгт биш, хамааралтай хэсэг */
+      const snippet =
+        relevantPassage(hit.body, query, 2) ??
+        (hit.body.length > 240 ? `${hit.body.slice(0, 240)}…` : hit.body);
+
       lines.push(`• **${hit.title}** (${KIND_LABELS[hit.kind]}) — ${snippet}`);
     }
     lines.push("");

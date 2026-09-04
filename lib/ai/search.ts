@@ -131,6 +131,82 @@ export function queryTerms(query: string): { terms: string[]; years: number[] } 
   return { terms: [...terms], years };
 }
 
+/* ────────────────────  Хамааралтай хэсэг сугалах  ──────────────────── */
+
+/**
+ * Урт бичвэрээс АСУУЛТАД ХАМААРАХ өгүүлбэрүүдийг л сугалж авна.
+ *
+ * ЯАГААД ХЭРЭГТЭЙ ВЭ: OPENAI_API_KEY байхгүй эсвэл ажиллахгүй үед
+ * систем мэдлэгийн сангийн нөөц хариулт руу унадаг. Тэр нөөц нь
+ * тохирсон баримтын БҮХ биетийг хэвлэдэг байлаа — хичээлийн бүтэн
+ * текст гарч ирээд, сурагчийн асуусан зүйл дунд нь алдагддаг.
+ *
+ * Жишээ: «Жамуха Тэмүүжин анд болсон нь» гэж асуухад «Монгол
+ * аймгууд ба Тэмүүжин» хичээлийн бүтэн агуулга гарч, анд болсон
+ * тухай өгүүлбэр хаа нэгтээ дунд нь оршиж байв.
+ *
+ * Одоо асуултын үг агуулсан өгүүлбэрүүдийг л түүж, эх дараалалд нь
+ * буцааж эмхэлнэ.
+ */
+export function relevantPassage(
+  text: string,
+  query: string,
+  maxSentences = 3,
+): string | null {
+  const { terms } = queryTerms(query);
+  if (terms.length === 0) return null;
+
+  /* Өгүүлбэр, мөр, сумтай жагсаалтаар таслана */
+  const pieces = text
+    .split(/(?<=[.!?])\s+|\n+|(?=•)/)
+    .map((piece) => piece.trim())
+    .filter((piece) => piece.length >= 25);
+
+  if (pieces.length === 0) return null;
+
+  const scored = pieces.map((piece, index) => {
+    const pieceWords = words(piece).map(stem);
+    let matched = 0;
+
+    for (const term of terms) {
+      /* Хэсэг сугалахад нарийвчлал чухал тул хатуу горим */
+      if (hasPrefix(pieceWords, term, true)) matched += 1;
+    }
+
+    return { piece, index, matched };
+  });
+
+  const best = Math.max(...scored.map((item) => item.matched));
+  if (best === 0) return null;
+
+  /*
+   * ЗӨВХӨН хамгийн сайн таарцтай ойролцоо өгүүлбэрийг авна.
+   *
+   * «Жамуха Тэмүүжин анд болсон нь» гэж асуухад хичээлийн товчлол
+   * «Тэмүүжин» гэсэн ганц үгээр таардаг. Түүнийг оруулбал жинхэнэ
+   * хариулт (гурван үг таарсан өгүүлбэр) доор нь дарагдана.
+   */
+  /*
+   * Босгыг ХАМГИЙН ДЭЭД оноогоор нь тавина. Нэг доогуур оноог
+   * зөвшөөрвөл үндэслэлийн сул таарц нэвтэрдэг: «болон» гэдэг үг
+   * «бололцсон»-ы үндэстэй ижил эхэлдэг тул хичээлийн товчлол
+   * жинхэнэ хариулттай тэнцэж, дээр нь гарч ирдэг байв.
+   */
+  const useful = scored.filter((item) => item.matched === best);
+
+  /*
+   * Хамгийн олон үг таарсныг нь эхэлж сонгоод, дараа нь ЭХ
+   * ДАРААЛАЛД нь буцаана — эс бөгөөс өгүүлбэрүүд холилдож,
+   * уншихад ойлгомжгүй болно.
+   */
+  return useful
+    .sort((a, b) => b.matched - a.matched || a.index - b.index)
+    .slice(0, maxSentences)
+    .sort((a, b) => a.index - b.index)
+    .map((item) => item.piece)
+    .join(" ");
+}
+
 /* ────────────────────────  Индекс  ──────────────────────── */
 
 export interface SearchDoc {
@@ -162,12 +238,33 @@ export interface SearchHit {
 }
 
 /** Тухайн үг текстэд үгийн эхлэлээр таарч байна уу? */
-function hasPrefix(haystackWords: string[], term: string): boolean {
+/**
+ * @param strict Урвуу таарцад илүү урт үндэс шаардах эсэх.
+ *
+ * ЭРЭМБЭЛЭХ ба ХЭСЭГ СУГАЛАХ хоёр өөр шаардлагатай:
+ *   • Эрэмбэлэхэд ӨРГӨН таарц ашигтай — баримт олдохгүй байснаас
+ *     ойролцоо таарсан нь дээр.
+ *   • Хэсэг сугалахад НАРИЙВЧЛАЛ чухал — нэг өгүүлбэр сонгох тул
+ *     худал таарц шууд буруу хариулт болно. «болон» → «боло» нь
+ *     «бололцсон» → «бололц»-той таарч, хамааралгүй өгүүлбэр
+ *     хариултын эхэнд гарч ирж байв.
+ */
+function hasPrefix(
+  haystackWords: string[],
+  term: string,
+  strict = false,
+): boolean {
+  const minRoot = strict ? 5 : 4;
+
   for (const word of haystackWords) {
     if (word === term) return true;
     if (word.startsWith(term) && word.length - term.length <= 4) return true;
     /* Урвуу тохиолдол: асуултын үг илүү урт (үндэс нь бүрэн тайрагдаагүй) */
-    if (term.startsWith(word) && term.length - word.length <= 3 && word.length >= 4) {
+    if (
+      term.startsWith(word) &&
+      term.length - word.length <= 3 &&
+      word.length >= minRoot
+    ) {
       return true;
     }
   }
