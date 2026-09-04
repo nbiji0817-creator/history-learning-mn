@@ -22,12 +22,28 @@ interface ChatMessage extends AiMessage {
   webCount?: number;
 }
 
+/**
+ * Base64 → UTF-8 текст.
+ *
+ * `atob()` нь БАЙТ бүрийг тусдаа тэмдэгт болгож буцаадаг. Кирилл
+ * үсэг UTF-8-д хоёр байт эзэлдэг тул `JSON.parse(atob(x))` гэвэл
+ * «Ð¥Ð°Ñ€Ñ…Ð¾Ñ€ÑƒÐ¼» гэсэн эвдэрсэн текст гарна.
+ *
+ * Тиймээс байтуудыг цуглуулж, TextDecoder-оор UTF-8 гэж тайлна.
+ */
+function decodeBase64Utf8(value: string): string {
+  const bytes = Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
+}
+
 const KIND_ICONS: Record<string, string> = {
   lesson: "📚",
   figure: "👑",
   event: "📌",
   source: "📜",
   term: "📖",
+  /* Номын сан — сурах бичиг, анхдагч эх сурвалж, эрдэм шинжилгээ */
+  library: "📕",
   /* Гадаад эх сурвалж — сурах бичигт байхгүй асуултын хариулт */
   web: "🌐",
 };
@@ -99,7 +115,7 @@ export function AiTutor({ initialQuestion }: { initialQuestion?: string }) {
       let citations: Citation[] = [];
       try {
         const encoded = response.headers.get("X-Ai-Citations");
-        if (encoded) citations = JSON.parse(atob(encoded));
+        if (encoded) citations = JSON.parse(decodeBase64Utf8(encoded));
       } catch {
         /* Толгой эвдэрсэн ч хариулт харагдах ёстой */
       }
