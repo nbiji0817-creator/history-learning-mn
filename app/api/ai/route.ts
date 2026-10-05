@@ -14,6 +14,7 @@ import {
 } from "@/lib/ai/personalize";
 import { mergeHits, semanticSearch } from "@/lib/ai/embeddings";
 import { createClient } from "@/lib/supabase/server";
+import { activeChatProvider, streamChat } from "@/lib/ai/provider";
 import {
   webContextPrompt,
   webOnlyAnswer,
@@ -166,7 +167,8 @@ export async function POST(request: Request) {
    */
   const learner = await getLearnerContext();
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  /* Аль нийлүүлэгч идэвхтэйг тодорхойлно (Gemini → OpenAI → байхгүй) */
+  const provider = activeChatProvider();
 
   /*
    * ВЭБ ХАЙЛТ РУУ ШИЛЖИХ
@@ -183,8 +185,8 @@ export async function POST(request: Request) {
     webResults = await webSearch(message);
   }
 
-  const useOpenAi =
-    Boolean(apiKey) && (result.hits.length > 0 || webResults.length > 0);
+  const useModel =
+    provider !== null && (result.hits.length > 0 || webResults.length > 0);
 
   const questionId = await logQuestion({
     question: message,
@@ -192,10 +194,10 @@ export async function POST(request: Request) {
     matched: result.confident,
     topScore: result.topScore,
     topMatch: result.hits[0]?.title ?? null,
-    source: useOpenAi
+    source: useModel
       ? webResults.length > 0
-        ? "openai+web"
-        : "openai"
+        ? `${provider}+web`
+        : String(provider)
       : webResults.length > 0
         ? "web"
         : "knowledge-base",
@@ -221,7 +223,7 @@ export async function POST(request: Request) {
   }
 
   /* ── Санд алга, вэбээс олдсон, түлхүүр байхгүй: хураангуйг өгнө ── */
-  if (result.hits.length === 0 && !apiKey) {
+  if (result.hits.length === 0 && provider === null) {
     /* Вэбийн эх сурвалжийг ишлэлийн толгойд оруулна */
     const webCitations = Buffer.from(
       JSON.stringify(
@@ -243,110 +245,46 @@ export async function POST(request: Request) {
     });
   }
 
-  /* ── Түлхүүр байхгүй: мэдлэгийн сангийн нөөц хариулт ── */
-  if (!useOpenAi) {
+  /* ── Нийлүүлэгч байхгүй: мэдлэгийн сангийн нөөц хариулт ── */
+  if (!useModel) {
     return new Response(streamText(buildFallbackAnswer(mode, message, result)), {
       headers: { ...headers, "X-Ai-Source": "knowledge-base" },
     });
   }
 
-  /* ── OpenAI streaming ── */
-  try {
-    const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        stream: true,
-        /* Бага температур — түүхэн баримтад бүтээлч байдал хэрэггүй */
-        temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content:
-              buildSystemPrompt(mode, result.hits) +
-              personalizationPrompt(learner) +
-              (webResults.length > 0 ? webContextPrompt(webResults) : ""),
-          },
-          ...(body.history ?? []).slice(-6),
-          { role: "user", content: message },
-        ],
-      }),
-    });
+  /* ── Нийлүүлэгчээр урсгах (Gemini эсвэл OpenAI) ── */
+  const outcome = await streamChat({
+    system:
+      buildSystemPrompt(mode, result.hits) +
+      personalizationPrompt(learner) +
+      (webResults.length > 0 ? webContextPrompt(webResults) : ""),
+    history: (body.history ?? []).slice(-6),
+    message,
+  });
 
-    if (!upstream.ok || !upstream.body) {
-      /*
-       * OpenAI бүтэлгүйтвэл сурагч үүнийг мэдэх шаардлагагүй — мэдлэгийн
-       * сангийн хариулт хэвийн үргэлжилнэ. Гэхдээ админ ЯАГААД гэдгийг
-       * мэдэх ёстой тул шалтгааныг толгойд тавина. Түлхүүрийн утга
-       * хэзээ ч энд орохгүй — зөвхөн статус, OpenAI-ийн мессеж.
-       */
-      let reason = `HTTP ${upstream.status}`;
-      try {
-        const errorBody = await upstream.json();
-        const detail = errorBody?.error?.message;
-        if (detail) reason += `: ${String(detail).slice(0, 180)}`;
-      } catch {
-        /* Биегүй хариу — статус л хангалттай */
-      }
-
-      const text =
-        result.hits.length > 0
-          ? buildFallbackAnswer(mode, message, result)
-          : webOnlyAnswer(message, webResults);
-
-      return new Response(streamText(text), {
-        headers: {
-          ...headers,
-          "X-Ai-Source": "knowledge-base-fallback",
-          /* Толгойд зөвхөн ASCII зөвшөөрөгддөг */
-          "X-Ai-Openai-Error": encodeURIComponent(reason),
-        },
-      });
-    }
-
-    /* SSE-г цэвэр текст болгон хөрвүүлнэ */
-    const decoder = new TextDecoder();
-    const encoder = new TextEncoder();
-    let buffer = "";
-
-    const transformed = upstream.body.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          buffer += decoder.decode(chunk, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const payload = trimmed.slice(5).trim();
-            if (payload === "[DONE]") return;
-            try {
-              const parsed = JSON.parse(payload);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) controller.enqueue(encoder.encode(delta));
-            } catch {
-              /* Бүрэн бус JSON — дараагийн chunk-д үргэлжилнэ */
-            }
-          }
-        },
-      }),
-    );
-
-    return new Response(transformed, {
-      headers: { ...headers, "X-Ai-Source": "openai" },
-    });
-  } catch {
+  if ("error" in outcome) {
+    /*
+     * Нийлүүлэгч бүтэлгүйтвэл сурагч үүнийг мэдэх шаардлагагүй —
+     * мэдлэгийн сангийн хариулт хэвийн үргэлжилнэ. Гэхдээ админ
+     * ЯАГААД гэдгийг мэдэх ёстой тул шалтгааныг толгойд тавина.
+     * Түлхүүрийн утга хэзээ ч энд орохгүй.
+     */
     const text =
       result.hits.length > 0
         ? buildFallbackAnswer(mode, message, result)
         : webOnlyAnswer(message, webResults);
+
     return new Response(streamText(text), {
-      headers: { ...headers, "X-Ai-Source": "knowledge-base-error" },
+      headers: {
+        ...headers,
+        "X-Ai-Source": "knowledge-base-fallback",
+        /* Толгойд зөвхөн ASCII зөвшөөрөгддөг */
+        "X-Ai-Provider-Error": encodeURIComponent(outcome.error),
+      },
     });
   }
+
+  return new Response(outcome.stream, {
+    headers: { ...headers, "X-Ai-Source": outcome.provider },
+  });
 }

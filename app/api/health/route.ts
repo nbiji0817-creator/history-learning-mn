@@ -2,6 +2,7 @@ import { getDbStatus } from "@/lib/repo";
 import { webSearchProvider } from "@/lib/ai/web-search";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/config";
 import { describeOpenAiKey } from "@/lib/ai/embeddings";
+import { activeChatProvider, describeChatProvider } from "@/lib/ai/provider";
 
 /**
  * Орчны хувьсагчийн төлөвийг хүн уншихаар тайлбарлана.
@@ -65,9 +66,13 @@ export async function GET() {
         siteUrl: describe("NEXT_PUBLIC_SITE_URL"),
         teacherCode: describe("TEACHER_INVITE_CODE"),
         seedSecret: describe("SEED_SECRET"),
-        /* Хоосон эсэхээс гадна ХЭЛБЭР нь зөв эсэхийг шалгана */
+        /* Аль нийлүүлэгч идэвхтэй вэ: gemini → openai → байхгүй */
+        aiProvider: activeChatProvider() ?? "тохируулаагүй",
+        aiProblem: describeChatProvider() ?? "OK",
+        geminiKey: describe("GEMINI_API_KEY"),
+        geminiModel: describe("GEMINI_MODEL"),
+        /* Ойлголтын хайлт нь OpenAI-гийн embedding-ээс хамаарна */
         openAiKey: describeOpenAiKey() ?? "OK",
-        openAiKeyLength: (process.env.OPENAI_API_KEY ?? "").trim().length,
         openAiModel: describe("OPENAI_MODEL"),
         /* Википедиа түлхүүргүй ажилладаг тул энэ нь хэзээ ч хоосон биш */
         webSearchProvider: webSearchProvider(),
