@@ -285,6 +285,11 @@ export async function POST(request: Request) {
   }
 
   return new Response(outcome.stream, {
-    headers: { ...headers, "X-Ai-Source": outcome.provider },
+    headers: {
+      ...headers,
+      "X-Ai-Source": outcome.provider,
+      /* Аль загвар хариулсан — нөөц загвар ажилласан эсэхийг харуулна */
+      ...(outcome.model ? { "X-Ai-Model": outcome.model } : {}),
+    },
   });
 }

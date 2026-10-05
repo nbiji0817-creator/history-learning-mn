@@ -67,7 +67,12 @@ export interface ChatTurn {
 }
 
 type StreamResult =
-  | { stream: ReadableStream<Uint8Array>; provider: ChatProvider }
+  | {
+      stream: ReadableStream<Uint8Array>;
+      provider: ChatProvider;
+      /** Аль загвар хариулсан — оношилгоонд */
+      model?: string;
+    }
   | { error: string };
 
 /* ────────────────────────  Gemini  ──────────────────────── */
@@ -108,16 +113,27 @@ async function listGeminiModels(): Promise<string[]> {
       models?: { name?: string; supportedGenerationMethods?: string[] }[];
     };
 
-    cachedModels = (body.models ?? [])
+    /*
+     * Google нь `generateContent` гэж жагсаадаг; урсгалын хувилбар
+     * (`streamGenerateContent`) нь түүнтэй хамт боломжтой байдаг ч
+     * жагсаалтад тусад нь ГАРДАГГҮЙ. Урьд нь `streamGenerateContent`
+     * гэж шүүсэн тул жагсаалт үргэлж хоосон гарч, нөөц загвар
+     * хэзээ ч ажиллахгүй байв.
+     */
+    const names = (body.models ?? [])
       .filter((item) =>
-        (item.supportedGenerationMethods ?? []).includes(
-          "streamGenerateContent",
+        (item.supportedGenerationMethods ?? []).some(
+          (method) =>
+            method === "generateContent" || method === "streamGenerateContent",
         ),
       )
       .map((item) => String(item.name ?? "").replace(/^models\//, ""))
       .filter(Boolean);
 
-    return cachedModels;
+    /* Хоосон үр дүнг кэшлэхгүй — дараа дахин оролдоно */
+    if (names.length > 0) cachedModels = names;
+
+    return names;
   } catch {
     return [];
   }
@@ -189,7 +205,11 @@ async function streamGemini(
     return { error: await describeFailure(response, `Gemini (${model})`) };
   }
 
-  return { stream: parseSse(response.body, extractGeminiText), provider: "gemini" };
+  return {
+    stream: parseSse(response.body, extractGeminiText),
+    provider: "gemini",
+    model,
+  };
 }
 
 function extractGeminiText(payload: unknown): string | null {
