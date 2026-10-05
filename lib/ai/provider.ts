@@ -72,7 +72,15 @@ type StreamResult =
 
 /* ────────────────────────  Gemini  ──────────────────────── */
 
-const GEMINI_DEFAULT_MODEL = "gemini-2.0-flash";
+/*
+ * Google загвараа тогтмол шинэчилж, хуучныг нь хаадаг. Хаагдсан
+ * загвар дуудвал 404 буцаж, хариултын текстэд ОРЛУУЛАХ загварын нэр
+ * бичигдэж ирдэг — тэр мессежийг `/api/health`, админ самбарт ил
+ * гаргадаг тул дараагийн удаа шууд мэдэгдэнэ.
+ *
+ * Шинэчлэхдээ энд засах, эсвэл GEMINI_MODEL хувьсагчаар дарна.
+ */
+const GEMINI_DEFAULT_MODEL = "gemini-3.8-flash";
 
 async function streamGemini(
   system: string,
