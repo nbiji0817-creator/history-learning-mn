@@ -82,13 +82,81 @@ type StreamResult =
  */
 const GEMINI_DEFAULT_MODEL = "gemini-3.8-flash";
 
+/**
+ * Google-ээс боломжтой загваруудын жагсаалтыг асууна.
+ *
+ * ЯАГААД КОДОД БИЧИХГҮЙ ВЭ: Google загвараа тогтмол шинэчилж,
+ * хуучныг нь хаадаг. Нэрийг кодод бэхлэвэл хэдэн сарын дараа
+ * хоцордог (gemini-2.0-flash яг ингэж хаагдсан). Амьд жагсаалт
+ * авснаар орлуулах загварыг өөрөө олно.
+ *
+ * Үр дүнг процессын санах ойд хадгална — хүсэлт бүрд дуудахгүй.
+ */
+let cachedModels: string[] | null = null;
+
+async function listGeminiModels(): Promise<string[]> {
+  if (cachedModels) return cachedModels;
+
+  try {
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+      { headers: { "x-goog-api-key": key("GEMINI_API_KEY") } },
+    );
+    if (!response.ok) return [];
+
+    const body = (await response.json()) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+    };
+
+    cachedModels = (body.models ?? [])
+      .filter((item) =>
+        (item.supportedGenerationMethods ?? []).includes(
+          "streamGenerateContent",
+        ),
+      )
+      .map((item) => String(item.name ?? "").replace(/^models\//, ""))
+      .filter(Boolean);
+
+    return cachedModels;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Оролдох загваруудын дараалал.
+ *
+ * Эхлээд тохируулсан (эсвэл анхдагч) загвар. Тэр ачаалалтай эсвэл
+ * хаагдсан бол амьд жагсаалтаас хөнгөн хувилбарыг сонгоно —
+ * «lite» нь ихэвчлэн бага ачаалалтай байдаг.
+ */
+async function geminiCandidates(): Promise<string[]> {
+  const preferred =
+    (process.env.GEMINI_MODEL ?? "").trim() || GEMINI_DEFAULT_MODEL;
+
+  const available = await listGeminiModels();
+  if (available.length === 0) return [preferred];
+
+  const score = (name: string): number => {
+    if (name.includes("lite")) return 0;
+    if (name.includes("flash")) return 1;
+    return 2;
+  };
+
+  const rest = available
+    .filter((name) => name !== preferred)
+    .sort((a, b) => score(a) - score(b));
+
+  /* Хоёр нөөц хангалттай — илүү оролдвол хэрэглэгч удаан хүлээнэ */
+  return [preferred, ...rest.slice(0, 2)];
+}
+
 async function streamGemini(
   system: string,
   history: ChatTurn[],
   message: string,
+  model: string,
 ): Promise<StreamResult> {
-  const model = (process.env.GEMINI_MODEL ?? "").trim() || GEMINI_DEFAULT_MODEL;
-
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
     {
@@ -114,7 +182,7 @@ async function streamGemini(
   );
 
   if (!response.ok || !response.body) {
-    return { error: await describeFailure(response, "Gemini") };
+    return { error: await describeFailure(response, `Gemini (${model})`) };
   }
 
   return { stream: parseSse(response.body, extractGeminiText), provider: "gemini" };
@@ -279,6 +347,13 @@ function isTransient(message: string): boolean {
   return /(429|503)|ачаалалтай|завгүй/.test(message);
 }
 
+/** Загвар хаагдсан, олдохгүй — өөр загвар оролдох нь утгатай. */
+function isModelIssue(message: string): boolean {
+  return /загвар олдсонгүй|no longer available|not found|is not supported/i.test(
+    message,
+  );
+}
+
 const RETRIES = 2;
 const RETRY_DELAY_MS = 700;
 
@@ -293,29 +368,56 @@ export async function streamChat(options: {
   const problem = describeChatProvider();
   if (problem) return { error: problem };
 
+  /*
+   * Gemini бол загвар солих боломжтой: үндсэн нь ачаалалтай байвал
+   * хөнгөн хувилбар руу шилжинэ. OpenAI-д ганц загвар.
+   */
+  const models =
+    provider === "gemini" ? await geminiCandidates() : [""];
+
   let last: StreamResult = { error: "Тодорхойгүй алдаа." };
 
-  for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
-    try {
-      last =
-        provider === "gemini"
-          ? await streamGemini(options.system, options.history, options.message)
-          : await streamOpenAi(options.system, options.history, options.message);
-    } catch (error) {
-      last = {
-        error:
-          error instanceof Error
-            ? `Сүлжээний алдаа: ${error.message}`
-            : "Тодорхойгүй алдаа.",
-      };
+  for (const model of models) {
+    for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
+      try {
+        last =
+          provider === "gemini"
+            ? await streamGemini(
+                options.system,
+                options.history,
+                options.message,
+                model,
+              )
+            : await streamOpenAi(
+                options.system,
+                options.history,
+                options.message,
+              );
+      } catch (error) {
+        last = {
+          error:
+            error instanceof Error
+              ? `Сүлжээний алдаа: ${error.message}`
+              : "Тодорхойгүй алдаа.",
+        };
+      }
+
+      if (!("error" in last)) return last;
+
+      /* Тогтмол алдаа — дахин оролдох, загвар солих нь утгагүй */
+      if (!isTransient(last.error) && !isModelIssue(last.error)) return last;
+
+      /* Түр алдаа бол тухайн загвар дээр дахин оролдоно */
+      if (isTransient(last.error) && attempt < RETRIES) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
+        );
+        continue;
+      }
+
+      /* Оролдлого дууссан — дараагийн загвар руу */
+      break;
     }
-
-    if (!("error" in last)) return last;
-    if (!isTransient(last.error) || attempt === RETRIES) return last;
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
-    );
   }
 
   return last;
