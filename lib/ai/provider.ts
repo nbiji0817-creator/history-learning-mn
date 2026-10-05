@@ -147,8 +147,12 @@ async function geminiCandidates(): Promise<string[]> {
     .filter((name) => name !== preferred)
     .sort((a, b) => score(a) - score(b));
 
-  /* Хоёр нөөц хангалттай — илүү оролдвол хэрэглэгч удаан хүлээнэ */
-  return [preferred, ...rest.slice(0, 2)];
+  /*
+   * Гурван нөөц. Квот загвар тус бүрээр тоологддог тул нэг нь
+   * барагдсан ч дараагийнх нь ажиллах магадлалтай. Үүнээс олон
+   * оролдвол сурагч удаан хүлээнэ.
+   */
+  return [preferred, ...rest.slice(0, 3)];
 }
 
 async function streamGemini(
@@ -247,9 +251,27 @@ async function describeFailure(
 ): Promise<string> {
   let detail = "";
   try {
-    const body = await response.json();
-    detail =
-      (body as { error?: { message?: string } })?.error?.message ?? "";
+    const body = (await response.json()) as {
+      error?: {
+        message?: string;
+        details?: { violations?: { quotaId?: string }[] }[];
+      };
+    };
+    detail = body?.error?.message ?? "";
+
+    /*
+     * Квотын алдаанд Google аль хязгаар болохыг `details` дотор
+     * бичдэг (ж: GenerateRequestsPerDayPerProjectPerModel-FreeTier).
+     * Мессеж дээр нь нэмбэл «минутын уу, өдрийн үү» гэдэг шууд
+     * мэдэгдэнэ — энэ нь хүлээх үү, өөр загвар руу шилжих үү гэдгийг
+     * шийдэхэд чухал.
+     */
+    const quotaIds = (body?.error?.details ?? [])
+      .flatMap((entry) => entry.violations ?? [])
+      .map((violation) => violation.quotaId)
+      .filter(Boolean);
+
+    if (quotaIds.length > 0) detail = `${quotaIds.join(", ")} — ${detail}`;
   } catch {
     detail = await response.text().catch(() => "");
   }
@@ -355,8 +377,10 @@ function isTransient(message: string): boolean {
 /**
  * Квотын хязгаар мөн эсэх.
  *
- * Квот нь ТӨСЛИЙН хэмжээнд тоологддог тул өөр загвар оролдох нь ч
- * тус болохгүй — шууд зогсоно.
+ * Google-ийн үнэгүй квот нь ЗАГВАР ТУС БҮРЭЭР тоологддог
+ * (`...PerProjectPerModel-FreeTier`). Тиймээс нэг загварын квот
+ * барагдсан ч ӨӨР загварт шинэ квот үлдсэн байдаг — шилжих нь
+ * утгатай. Харин ижил загвар дээр дахин оролдох нь утгагүй.
  */
 function isQuota(message: string): boolean {
   return /429|квот|хязгаар хэтэрсэн/.test(message);
@@ -419,8 +443,11 @@ export async function streamChat(options: {
 
       if (!("error" in last)) return last;
 
-      /* Квот — дахин оролдох ч, загвар солих ч утгагүй */
-      if (isQuota(last.error)) return last;
+      /*
+       * Квот — ижил загвар дээр дахин оролдохгүй, харин квот нь
+       * загвар тус бүрээр тоологддог тул дараагийн загвар руу шилжинэ.
+       */
+      if (isQuota(last.error)) break;
 
       /* Тогтмол алдаа — дахин оролдох, загвар солих нь утгагүй */
       if (!isTransient(last.error) && !isModelIssue(last.error)) return last;
