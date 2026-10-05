@@ -193,17 +193,25 @@ async function describeFailure(
    */
   const lower = detail.toLowerCase();
 
+  /*
+   * Дараалал чухал. «This model is currently experiencing high
+   * demand» гэсэн ачааллын мессеж дотор «model» гэсэн үг байдаг тул
+   * загварын шалгалтыг эхэнд тавивал «загвар олдсонгүй» гэж буруу
+   * чиглүүлнэ. Тиймээс ТОДОРХОЙ шалтгаануудыг эхэлж шалгана.
+   */
   let hint = "";
-  if (/api key|api_key|credential|unauthenticated/.test(lower)) {
+  if (/high demand|overload|unavailable|try again later/.test(lower)) {
+    hint = "Нийлүүлэгч түр ачаалалтай байна. Хэсэг хүлээгээд дахин оролдоно уу.";
+  } else if (/api key|api_key|credential|unauthenticated/.test(lower)) {
     hint = "Түлхүүр буруу эсвэл хүчингүй байна. Бүтнээр нь хуулж буулгасан эсэхээ шалгана уу.";
   } else if (/quota|rate limit|exceeded|billing|insufficient/.test(lower)) {
     hint = "Хязгаар хэтэрсэн эсвэл кредит дууссан байна.";
-  } else if (/model|not found/.test(lower)) {
-    hint = "Загвар олдсонгүй — загварын нэрийг шалгана уу.";
+  } else if (/no longer available|not found|is not supported/.test(lower)) {
+    hint = "Загвар олдсонгүй эсвэл хаагдсан — GEMINI_MODEL-ыг шалгана уу.";
   } else if (/permission|forbidden/.test(lower)) {
     hint = "Энэ түлхүүрт эрх алга.";
-  } else if (response.status === 429) {
-    hint = "Хязгаар хэтэрсэн эсвэл кредит дууссан байна.";
+  } else if (response.status === 429 || response.status === 503) {
+    hint = "Нийлүүлэгч завгүй байна. Хэсэг хүлээгээд дахин оролдоно уу.";
   }
 
   return (
@@ -259,6 +267,21 @@ function parseSse(
  * Алдаа гарвал шалтгааныг буцаана — дуудагч нь мэдлэгийн сангийн
  * нөөц хариулт руу унаж, шалтгааныг толгойд тавина.
  */
+/**
+ * Түр зуурын алдаанд дахин оролдох эсэх.
+ *
+ * 503 (ачаалал), 429 (хурдны хязгаар) нь хэдхэн зуун миллисекундын
+ * дараа өөрөө арилдаг. Буруу түлхүүр, хаагдсан загвар зэрэг
+ * ТОГТМОЛ алдаанд дахин оролдох нь утгагүй — хэрэглэгчийг хүлээлгэх
+ * төдий.
+ */
+function isTransient(message: string): boolean {
+  return /(429|503)|ачаалалтай|завгүй/.test(message);
+}
+
+const RETRIES = 2;
+const RETRY_DELAY_MS = 700;
+
 export async function streamChat(options: {
   system: string;
   history: ChatTurn[];
@@ -270,16 +293,30 @@ export async function streamChat(options: {
   const problem = describeChatProvider();
   if (problem) return { error: problem };
 
-  try {
-    return provider === "gemini"
-      ? await streamGemini(options.system, options.history, options.message)
-      : await streamOpenAi(options.system, options.history, options.message);
-  } catch (error) {
-    return {
-      error:
-        error instanceof Error
-          ? `Сүлжээний алдаа: ${error.message}`
-          : "Тодорхойгүй алдаа.",
-    };
+  let last: StreamResult = { error: "Тодорхойгүй алдаа." };
+
+  for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
+    try {
+      last =
+        provider === "gemini"
+          ? await streamGemini(options.system, options.history, options.message)
+          : await streamOpenAi(options.system, options.history, options.message);
+    } catch (error) {
+      last = {
+        error:
+          error instanceof Error
+            ? `Сүлжээний алдаа: ${error.message}`
+            : "Тодорхойгүй алдаа.",
+      };
+    }
+
+    if (!("error" in last)) return last;
+    if (!isTransient(last.error) || attempt === RETRIES) return last;
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
+    );
   }
+
+  return last;
 }
